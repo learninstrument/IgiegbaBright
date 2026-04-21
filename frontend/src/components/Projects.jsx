@@ -7,9 +7,7 @@ import {
   Layers,
   Sparkles
 } from 'lucide-react'
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-const WEB_PROJECTS_ENDPOINT = `${API_BASE_URL}/api/webprojects`
+import { fetchApi } from '../lib/apiClient'
 
 const Projects = ({ openLightbox }) => {
   const [activeTab, setActiveTab] = useState('all')
@@ -23,17 +21,16 @@ const Projects = ({ openLightbox }) => {
   useEffect(() => {
     const fetchWebProjects = async () => {
       try {
-        console.log('Fetching projects from:', WEB_PROJECTS_ENDPOINT)
-        const res = await fetch(WEB_PROJECTS_ENDPOINT)
-        console.log('Response status:', res.status)
+        const res = await fetchApi('/webprojects')
         const data = await res.json()
-        console.log('Response data:', data)
-        if (data.success) {
-          console.log('Projects loaded:', data.projects)
-          setWebProjects(data.projects)
+        if (res.ok && data.success) {
+          setWebProjects(data.projects || [])
+        } else {
+          setWebProjects([])
         }
       } catch (error) {
         console.error('Failed to fetch web projects:', error)
+        setWebProjects([])
       }
     }
     fetchWebProjects()
@@ -141,12 +138,12 @@ const Projects = ({ openLightbox }) => {
                 >
                   <img
                     src={project.image}
-                    alt={project.name}
+                    alt={project.title}
                     className="masonry-image"
                     loading="lazy"
                   />
                   <div className="masonry-overlay">
-                    <h4 className="masonry-title">{project.name}</h4>
+                    <h4 className="masonry-title">{project.title}</h4>
                     <span className="masonry-category">{project.category}</span>
                   </div>
                 </motion.div>
@@ -168,9 +165,10 @@ const Projects = ({ openLightbox }) => {
             </h3>
             {webProjects.map((project) => {
               const projectName = project.name || project.title || 'Untitled Project'
-              const projectTech = project.technologies || project.tech || []
-              const projectLiveUrl = project.liveUrl || project.liveDemo || project.url
-              const projectGithubUrl = project.githubUrl || project.github
+              const projectTech = project.technologies || project.tech || project.tech_stack || []
+              const projectLiveUrl = project.liveUrl || project.live_url || project.liveDemo || project.url
+              const projectGithubUrl = project.githubUrl || project.github_url || project.github
+              const projectImage = project.image || project.image_url
 
               return (
               <motion.div
@@ -188,10 +186,10 @@ const Projects = ({ openLightbox }) => {
                       <span className="device-dot green"></span>
                         <span className="device-url">{projectLiveUrl || 'localhost'}</span>
                     </div>
-                    {project.image ? (
+                    {projectImage ? (
                       <img
-                        src={project.image}
-                          alt={projectName}
+                        src={projectImage}
+                           alt={projectName}
                         className="device-screen"
                         loading="lazy"
                       />

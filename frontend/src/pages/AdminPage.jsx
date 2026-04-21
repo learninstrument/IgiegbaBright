@@ -24,9 +24,7 @@ import {
   Edit3
 } from 'lucide-react'
 import { uploadToSupabaseDirect, deleteFromSupabaseDirect, listFilesFromSupabase } from '../lib/supabaseClient'
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-const API_URL = `${API_BASE_URL}/api`
+import { fetchApi } from '../lib/apiClient'
 
 const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('webapps')
@@ -73,9 +71,10 @@ const AdminPage = () => {
 
   const fetchWebProjects = async () => {
     try {
-      const res = await fetch(`${API_URL}/webprojects`)
+      const res = await fetchApi('/webprojects')
       const data = await res.json()
-      if (data.success) setWebProjects(data.projects)
+      if (res.ok && data.success) setWebProjects(data.projects || [])
+      else setWebProjects([])
     } catch (error) {
       console.error('Failed to fetch web projects:', error)
     }
@@ -168,11 +167,8 @@ const AdminPage = () => {
     const technologiesArray = projectForm.technologies.split(',').map(t => t.trim()).filter(t => t)
 
     try {
-      const url = editingProject
-        ? `${API_URL}/api/webprojects/${editingProject.id}`
-        : `${API_URL}/api/webprojects`
-
-      const res = await fetch(url, {
+      const endpoint = editingProject ? `/webprojects/${editingProject.id}` : '/webprojects'
+      const res = await fetchApi(endpoint, {
         method: editingProject ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -191,10 +187,10 @@ const AdminPage = () => {
         fetchWebProjects()
         resetProjectForm()
       } else {
-        showMessage('error', data.message)
+        showMessage('error', data.message || 'Failed to save project')
       }
     } catch (error) {
-      showMessage('error', 'Failed to save project')
+      showMessage('error', error.message || 'Failed to save project')
     }
     setIsSaving(false)
   }
@@ -204,10 +200,12 @@ const AdminPage = () => {
     setProjectForm({
       title: project.name || project.title || '',
       description: project.description,
-      image: project.image,
-      liveUrl: project.liveUrl || project.liveDemo || '',
-      githubUrl: project.githubUrl || project.github || '',
-      technologies: Array.isArray(project.technologies) ? project.technologies.join(', ') : (Array.isArray(project.tech) ? project.tech.join(', ') : '')
+      image: project.image || project.image_url || '',
+      liveUrl: project.liveUrl || project.live_url || project.liveDemo || '',
+      githubUrl: project.githubUrl || project.github_url || project.github || '',
+      technologies: Array.isArray(project.technologies)
+        ? project.technologies.join(', ')
+        : (Array.isArray(project.tech) ? project.tech.join(', ') : (Array.isArray(project.tech_stack) ? project.tech_stack.join(', ') : ''))
     })
     setShowProjectForm(true)
   }
@@ -215,7 +213,7 @@ const AdminPage = () => {
   const deleteProject = async (id) => {
     if (!confirm('Are you sure you want to delete this project?')) return
     try {
-      const res = await fetch(`${API_URL}/webprojects/${id}`, { method: 'DELETE' })
+      const res = await fetchApi(`/webprojects/${id}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) {
         showMessage('success', 'Project deleted')
@@ -424,29 +422,29 @@ const AdminPage = () => {
                     animate={{ opacity: 1 }}
                   >
                     <div className="project-card-image">
-                       {project.image ? (
-                         <img src={project.image} alt={project.name || project.title} />
-                       ) : (
+                       {(project.image || project.image_url) ? (
+                         <img src={project.image || project.image_url} alt={project.name || project.title} />
+                        ) : (
                          <div className="no-image"><Layers size={32} /></div>
                        )}
                      </div>
                      <div className="project-card-content">
                        <h4>{project.name || project.title}</h4>
-                       <p>{project.description || 'No description'}</p>
-                       <div className="project-card-tech">
-                         {(project.technologies || project.tech || []).map(t => <span key={t} className="tech-tag">{t}</span>)}
-                       </div>
-                       <div className="project-card-links">
-                         {(project.liveUrl || project.liveDemo) && (project.liveUrl || project.liveDemo) !== '#' && (
-                           <a href={project.liveUrl || project.liveDemo} target="_blank" rel="noopener noreferrer">
-                             <ExternalLink size={14} /> Demo
-                           </a>
-                         )}
-                         {(project.githubUrl || project.github) && (project.githubUrl || project.github) !== '#' && (
-                           <a href={project.githubUrl || project.github} target="_blank" rel="noopener noreferrer">
-                             <Github size={14} /> Code
-                           </a>
-                         )}
+                        <p>{project.description || 'No description'}</p>
+                        <div className="project-card-tech">
+                          {(project.technologies || project.tech || project.tech_stack || []).map(t => <span key={t} className="tech-tag">{t}</span>)}
+                        </div>
+                        <div className="project-card-links">
+                          {(project.liveUrl || project.live_url || project.liveDemo) && (project.liveUrl || project.live_url || project.liveDemo) !== '#' && (
+                            <a href={project.liveUrl || project.live_url || project.liveDemo} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink size={14} /> Demo
+                            </a>
+                          )}
+                          {(project.githubUrl || project.github_url || project.github) && (project.githubUrl || project.github_url || project.github) !== '#' && (
+                            <a href={project.githubUrl || project.github_url || project.github} target="_blank" rel="noopener noreferrer">
+                              <Github size={14} /> Code
+                            </a>
+                          )}
                       </div>
                     </div>
                     <div className="project-card-actions">

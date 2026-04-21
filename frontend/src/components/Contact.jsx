@@ -12,6 +12,7 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react'
+import { fetchApi } from '../lib/apiClient'
 
 const Contact = () => {
   const [ref, inView] = useInView({
@@ -43,7 +44,7 @@ const Contact = () => {
     setStatus({ loading: true, success: false, error: null })
 
     try {
-      const response = await fetch('/api/contact', {
+      const response = await fetchApi('/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

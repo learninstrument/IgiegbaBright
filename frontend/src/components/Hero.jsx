@@ -72,7 +72,7 @@ const Hero = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.6 }}
         >
-          Software Developer, Full-Stack Engineer, and Creative Designer.
+          Hello! Software Developer, Full-Stack Engineer, and Creative Designer.
           I build robust systems and wrap them in elegant, commercial-grade aesthetics.
         </motion.p>
 

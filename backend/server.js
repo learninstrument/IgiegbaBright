@@ -56,16 +56,22 @@ app.use(helmet({
 }));
 
 // CORS configuration
-const allowedOrigins = [
-  'http://localhost:5173',                    // Local dev
-  'https://igiegbabright.vercel.app',         // Production frontend
-  process.env.FRONTEND_URL                    // From env (Vercel)
-].filter(Boolean);
+const allowedOrigins = new Set([
+  'http://localhost:5173',
+  'https://igiegbabright.vercel.app',
+  ...(process.env.FRONTEND_URL || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean)
+]);
+
+const isAllowedLocalOrigin = (origin) => /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+const isAllowedVercelOrigin = (origin) => /^https:\/\/igiegbabright(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(origin);
 
 const corsOptions = {
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.has(origin) || isAllowedLocalOrigin(origin) || isAllowedVercelOrigin(origin)) {
       callback(null, true)
     } else {
       callback(new Error('Not allowed by CORS'))
@@ -87,6 +93,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Body parser
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Always serve fresh API data so new deployments and latest project updates appear immediately.
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 // Rate limiting for contact form
 const contactLimiter = rateLimit({

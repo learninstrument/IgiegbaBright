@@ -8,77 +8,138 @@ import {
   Sparkles
 } from 'lucide-react'
 import { fetchApi } from '../lib/apiClient'
+import { listFilesFromSupabase } from '../lib/supabaseClient'
+import {
+  graphicDesignProjects,
+  brandingDesignProjects,
+  webAppProjects
+} from '../data/projectsData'
 
 const Projects = ({ openLightbox }) => {
   const [activeTab, setActiveTab] = useState('all')
-  const [webProjects, setWebProjects] = useState([])
+  const [apiWebProjects, setApiWebProjects] = useState([])
+  const [projectFiles, setProjectFiles] = useState([])
   const [ref, inView] = useInView({
     threshold: 0.1,
     triggerOnce: true
   })
 
-  // Fetch web projects from backend
+  const isImageFilename = (filename = '') => /\.(avif|jpe?g|png|gif|webp|svg)$/i.test(filename)
+
+  const inferFileCategory = (filename = '') => {
+    const normalized = filename.toLowerCase()
+    if (normalized.includes('brand') || normalized.includes('logo')) return 'branding'
+    if (normalized.includes('web') || normalized.includes('app') || normalized.includes('site') || normalized.includes('ui')) return 'web'
+    return 'graphic'
+  }
+
+  const toProjectTitle = (filename = '') => (
+    filename
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[-_]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Untitled Project'
+  )
+
+  const normalizeProjectKey = (project = {}) => {
+    const name = project.name || project.title || ''
+    const image = project.image || project.image_url || ''
+    const live = project.liveUrl || project.live_url || project.liveDemo || project.url || ''
+    return `${project.id || ''}-${name}-${image}-${live}`.toLowerCase()
+  }
+
+  const dedupeProjects = (projects) => projects.filter((project, index, allProjects) => (
+    index === allProjects.findIndex(item => normalizeProjectKey(item) === normalizeProjectKey(project))
+  ))
+
+  // Fetch web projects and uploaded project files
   useEffect(() => {
     const fetchWebProjects = async () => {
       try {
         const res = await fetchApi('/webprojects')
         const data = await res.json()
         if (res.ok && data.success) {
-          setWebProjects(data.projects || [])
+          setApiWebProjects(data.projects || [])
         } else {
-          setWebProjects([])
+          setApiWebProjects([])
         }
       } catch (error) {
         console.error('Failed to fetch web projects:', error)
-        setWebProjects([])
+        setApiWebProjects([])
       }
     }
+
+    const fetchProjectFiles = async () => {
+      try {
+        const files = await listFilesFromSupabase('project')
+        setProjectFiles(files || [])
+      } catch (error) {
+        console.error('Failed to fetch project files:', error)
+        setProjectFiles([])
+      }
+    }
+
     fetchWebProjects()
+    fetchProjectFiles()
   }, [])
 
-  // Design Projects Data (static for now - can be made dynamic later)
-  const designProjects = [
-    {
-      id: 1,
-      title: 'SynParagon',
-      category: 'Brand Identity',
-      image: 'https://via.placeholder.com/600x400/1a1a2e/00f5ff?text=SynParagon+Logo',
-      description: 'Complete brand identity design including logo, color palette, and brand guidelines.',
-      type: 'design'
-    },
-    {
-      id: 2,
-      title: 'CwidyGlam',
-      category: 'Logo Design',
-      image: 'https://via.placeholder.com/600x800/1a1a2e/a855f7?text=CwidyGlam',
-      description: 'Elegant beauty brand logo with modern typography and feminine aesthetics.',
-      type: 'design',
-      tall: true
-    },
-    {
-      id: 3,
-      title: 'Love in Motion',
-      category: 'Event Branding',
-      image: 'https://via.placeholder.com/800x400/1a1a2e/ec4899?text=Love+in+Motion',
-      description: 'Romantic event branding with dynamic typography and passionate color schemes.',
-      type: 'design',
-      wide: true
-    }
-  ]
+  const graphicFileProjects = projectFiles
+    .filter(file => isImageFilename(file.filename) && inferFileCategory(file.filename) === 'graphic')
+    .map(file => ({
+      id: `graphic-file-${file.filename}`,
+      title: toProjectTitle(file.filename),
+      category: 'Graphic Design',
+      image: file.url,
+      description: 'Uploaded project file'
+    }))
+
+  const brandingFileProjects = projectFiles
+    .filter(file => isImageFilename(file.filename) && inferFileCategory(file.filename) === 'branding')
+    .map(file => ({
+      id: `branding-file-${file.filename}`,
+      title: toProjectTitle(file.filename),
+      category: 'Branding Design',
+      image: file.url,
+      description: 'Uploaded project file'
+    }))
+
+  const webFileProjects = projectFiles
+    .filter(file => inferFileCategory(file.filename) === 'web')
+    .map(file => ({
+      id: `web-file-${file.filename}`,
+      name: toProjectTitle(file.filename),
+      description: 'Uploaded project file',
+      image: isImageFilename(file.filename) ? file.url : '',
+      technologies: []
+    }))
+
+  const featuredGraphicProjects = dedupeProjects([...graphicDesignProjects, ...graphicFileProjects])
+  const featuredBrandingProjects = dedupeProjects([...brandingDesignProjects, ...brandingFileProjects])
+  const featuredWebProjects = dedupeProjects([...webAppProjects, ...webFileProjects, ...apiWebProjects])
 
   const tabs = [
     { id: 'all', label: 'All Work' },
-    { id: 'design', label: 'Design' },
+    { id: 'graphic', label: 'Graphic Design' },
+    { id: 'branding', label: 'Branding Design' },
     { id: 'web', label: 'Web Apps' }
   ]
 
-  const handleDesignClick = (index) => {
-    const designItems = designProjects.map(p => ({
+  const handleDesignClick = (collection, index) => {
+    const designItems = collection.map(p => ({
       image: p.image,
-      title: p.title,
-      category: p.category
+      title: p.title || p.name || 'Untitled Project',
+      category: p.category || 'Design'
     }))
     openLightbox(designItems, index)
+  }
+
+  const normalizeTechnologies = (project) => {
+    const technologies = project.technologies || project.tech || project.tech_stack || []
+    if (Array.isArray(technologies)) return technologies
+    if (typeof technologies === 'string') {
+      return technologies.split(',').map(item => item.trim()).filter(Boolean)
+    }
+    return []
   }
 
   return (
@@ -115,8 +176,8 @@ const Projects = ({ openLightbox }) => {
           ))}
         </motion.div>
 
-        {/* Design Projects - Masonry Grid */}
-        {(activeTab === 'all' || activeTab === 'design') && designProjects.length > 0 && (
+        {/* Graphic Design Projects */}
+        {(activeTab === 'all' || activeTab === 'graphic') && featuredGraphicProjects.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -124,17 +185,54 @@ const Projects = ({ openLightbox }) => {
           >
             <h3 className="text-center mb-4" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '2px' }}>
               <Sparkles size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
-              Graphic & Brand Design
+              Graphic Design
             </h3>
             <div className="masonry-grid mb-4">
-              {designProjects.map((project, index) => (
+              {featuredGraphicProjects.map((project, index) => (
                 <motion.div
                   key={project.id}
                   className={`masonry-item ${project.tall ? 'tall' : ''} ${project.wide ? 'wide' : ''}`}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={inView ? { opacity: 1, scale: 1 } : {}}
                   transition={{ delay: index * 0.1, duration: 0.5 }}
-                  onClick={() => handleDesignClick(index)}
+                  onClick={() => handleDesignClick(featuredGraphicProjects, index)}
+                >
+                  <img
+                    src={project.image}
+                    alt={project.title}
+                    className="masonry-image"
+                    loading="lazy"
+                  />
+                  <div className="masonry-overlay">
+                    <h4 className="masonry-title">{project.title}</h4>
+                    <span className="masonry-category">{project.category}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Branding Design Projects */}
+        {(activeTab === 'all' || activeTab === 'branding') && featuredBrandingProjects.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h3 className="text-center mb-4" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '2px' }}>
+              <Sparkles size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
+              Branding Design
+            </h3>
+            <div className="masonry-grid mb-4">
+              {featuredBrandingProjects.map((project, index) => (
+                <motion.div
+                  key={project.id}
+                  className={`masonry-item ${project.tall ? 'tall' : ''} ${project.wide ? 'wide' : ''}`}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={inView ? { opacity: 1, scale: 1 } : {}}
+                  transition={{ delay: index * 0.1, duration: 0.5 }}
+                  onClick={() => handleDesignClick(featuredBrandingProjects, index)}
                 >
                   <img
                     src={project.image}
@@ -153,7 +251,7 @@ const Projects = ({ openLightbox }) => {
         )}
 
         {/* Web Application Projects - Device Mockup */}
-        {(activeTab === 'all' || activeTab === 'web') && webProjects.length > 0 && (
+        {(activeTab === 'all' || activeTab === 'web') && featuredWebProjects.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -163,16 +261,16 @@ const Projects = ({ openLightbox }) => {
               <Layers size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
               Web Applications
             </h3>
-            {webProjects.map((project) => {
+            {featuredWebProjects.map((project) => {
               const projectName = project.name || project.title || 'Untitled Project'
-              const projectTech = project.technologies || project.tech || project.tech_stack || []
+              const projectTech = normalizeTechnologies(project)
               const projectLiveUrl = project.liveUrl || project.live_url || project.liveDemo || project.url
               const projectGithubUrl = project.githubUrl || project.github_url || project.github
               const projectImage = project.image || project.image_url
 
               return (
               <motion.div
-                key={project.id}
+                key={project.id || projectName}
                 className="glass-card device-mockup-card mb-4"
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
@@ -236,8 +334,24 @@ const Projects = ({ openLightbox }) => {
           </motion.div>
         )}
 
+        {/* Empty state for graphic design */}
+        {activeTab === 'graphic' && featuredGraphicProjects.length === 0 && (
+          <div className="text-center" style={{ padding: '4rem 2rem', color: 'var(--text-tertiary)' }}>
+            <Sparkles size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+            <p>No graphic design projects yet.</p>
+          </div>
+        )}
+
+        {/* Empty state for branding design */}
+        {activeTab === 'branding' && featuredBrandingProjects.length === 0 && (
+          <div className="text-center" style={{ padding: '4rem 2rem', color: 'var(--text-tertiary)' }}>
+            <Sparkles size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+            <p>No branding design projects yet.</p>
+          </div>
+        )}
+
         {/* Empty state for web apps */}
-        {activeTab === 'web' && webProjects.length === 0 && (
+        {activeTab === 'web' && featuredWebProjects.length === 0 && (
           <div className="text-center" style={{ padding: '4rem 2rem', color: 'var(--text-tertiary)' }}>
             <Layers size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
             <p>No web projects yet. Add them from the admin dashboard.</p>

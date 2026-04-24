@@ -21,7 +21,8 @@ import {
   Eye,
   ExternalLink,
   Github,
-  Edit3
+  Edit3,
+  Palette
 } from 'lucide-react'
 import { uploadToSupabaseDirect, deleteFromSupabaseDirect, listFilesFromSupabase } from '../lib/supabaseClient'
 
@@ -46,11 +47,21 @@ const AdminPage = () => {
     githubUrl: '',
     technologies: ''
   })
+  // Branding state
+  const [branding, setBranding] = useState(null)
+  const [brandingForm, setBrandingForm] = useState({
+    projectName: '',
+    projectDescription: ''
+  })
+  const [selectedAssetType, setSelectedAssetType] = useState('logo')
+  const [assetDescription, setAssetDescription] = useState('')
+  const [showBrandingForm, setShowBrandingForm] = useState(false)
 
   useEffect(() => {
     fetchUploadedFiles()
     fetchProfileFiles()
     fetchWebProjects()
+    fetchBranding()
   }, [])
 
   const fetchUploadedFiles = async () => {
@@ -78,6 +89,22 @@ const AdminPage = () => {
       if (data.success) setWebProjects(data.projects)
     } catch (error) {
       console.error('Failed to fetch web projects:', error)
+    }
+  }
+
+  const fetchBranding = async () => {
+    try {
+      const res = await fetch(`${API_URL}/branding`)
+      const data = await res.json()
+      if (data.success && data.branding) {
+        setBranding(data.branding)
+        setBrandingForm({
+          projectName: data.branding.projectName || '',
+          projectDescription: data.branding.projectDescription || ''
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch branding:', error)
     }
   }
 
@@ -234,6 +261,100 @@ const AdminPage = () => {
     setShowProjectForm(false)
   }
 
+  const handleBrandingSubmit = async (e) => {
+    e.preventDefault()
+    setIsSaving(true)
+
+    try {
+      const res = await fetch(`${API_URL}/branding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectName: brandingForm.projectName,
+          projectDescription: brandingForm.projectDescription,
+          brandAssets: branding?.brandAssets || []
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', 'Branding saved!')
+        fetchBranding()
+        setShowBrandingForm(false)
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to save branding')
+    }
+    setIsSaving(false)
+  }
+
+  const handleAddBrandAsset = async (file) => {
+    if (!branding) {
+      showMessage('error', 'Please save branding info first')
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      const result = await uploadToSupabaseDirect(file, 'brand')
+      if (!result.success) {
+        showMessage('error', `Upload failed: ${result.error}`)
+        setIsUploading(false)
+        return
+      }
+
+      // Add asset to branding
+      const res = await fetch(`${API_URL}/branding/assets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: result.url,
+          assetType: selectedAssetType,
+          description: assetDescription
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', 'Brand asset added!')
+        fetchBranding()
+        setAssetDescription('')
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to add asset')
+    }
+    setIsUploading(false)
+  }
+
+  const deleteBrandAsset = async (assetId) => {
+    if (!confirm('Are you sure you want to delete this asset?')) return
+    try {
+      const res = await fetch(`${API_URL}/branding/assets/${assetId}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', 'Asset deleted')
+        fetchBranding()
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to delete asset')
+    }
+  }
+
+  const { getRootProps: getBrandRootProps, getInputProps: getBrandInputProps, isDragActive: isBrandDragActive } = useDropzone({
+    onDrop: (files) => {
+      if (files.length > 0) handleAddBrandAsset(files[0])
+    },
+    accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.svg'] },
+    maxSize: 10 * 1024 * 1024,
+    maxFiles: 1
+  })
+
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B'
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
@@ -242,9 +363,19 @@ const AdminPage = () => {
 
   const isVideo = (filename) => /\.(mp4|webm|ogg)$/i.test(filename)
 
+  const assetTypes = [
+    { value: 'logo', label: 'Logo' },
+    { value: 'color-palette', label: 'Color Palette' },
+    { value: 'typography', label: 'Typography' },
+    { value: 'guidelines', label: 'Brand Guidelines' },
+    { value: 'icon-set', label: 'Icon Set' },
+    { value: 'other', label: 'Other' }
+  ]
+
   const tabs = [
     { id: 'webapps', label: 'Web Apps', icon: <Code2 size={18} /> },
     { id: 'projects', label: 'Project Files', icon: <Layers size={18} /> },
+    { id: 'branding', label: 'Project Branding', icon: <Palette size={18} /> },
     { id: 'profile', label: 'Profile Picture', icon: <User size={18} /> }
   ]
 
@@ -521,6 +652,186 @@ const AdminPage = () => {
                 {uploadedFiles.length === 0 && (
                   <div className="empty-state"><FolderOpen size={48} /><p>No files uploaded yet</p></div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Branding Tab */}
+          {activeTab === 'branding' && (
+            <div className="admin-section">
+              <div className="admin-section-header">
+                <div>
+                  <h2 className="admin-section-title">
+                    <Palette size={24} />
+                    Project Branding & Identity
+                  </h2>
+                  <p className="admin-section-desc">
+                    Manage your project name, description, and upload brand identity assets like logos, color palettes, typography guides, and more.
+                  </p>
+                </div>
+                {!showBrandingForm && (
+                  <button className="btn-primary" onClick={() => setShowBrandingForm(true)}>
+                    <Plus size={18} />
+                    Edit Branding
+                  </button>
+                )}
+              </div>
+
+              {/* Branding Form */}
+              {showBrandingForm && (
+                <motion.form
+                  className="project-form glass-card-static"
+                  onSubmit={handleBrandingSubmit}
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="form-header">
+                    <h3>Edit Project Branding</h3>
+                    <button type="button" className="close-btn" onClick={() => setShowBrandingForm(false)}>
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="form-grid">
+                    <div className="form-group full-width">
+                      <label>Project Name *</label>
+                      <input
+                        type="text"
+                        value={brandingForm.projectName}
+                        onChange={(e) => setBrandingForm({ ...brandingForm, projectName: e.target.value })}
+                        placeholder="My Awesome Project"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label>Project Description</label>
+                      <textarea
+                        value={brandingForm.projectDescription}
+                        onChange={(e) => setBrandingForm({ ...brandingForm, projectDescription: e.target.value })}
+                        placeholder="Describe your project and its purpose..."
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-actions">
+                    <button type="button" className="btn-secondary" onClick={() => setShowBrandingForm(false)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn-primary" disabled={isSaving}>
+                      {isSaving ? <><Loader2 className="spinning" size={18} /> Saving...</> : <><Save size={18} /> Save Branding</>}
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+
+              {/* Display Branding Info */}
+              {branding && !showBrandingForm && (
+                <motion.div
+                  className="glass-card-static"
+                  style={{ marginBottom: '30px', padding: '24px' }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <h3 style={{ marginTop: 0 }}>{branding.projectName}</h3>
+                  <p style={{ color: '#a0aec0', whiteSpace: 'pre-wrap' }}>{branding.projectDescription || 'No description provided'}</p>
+                </motion.div>
+              )}
+
+              {/* Brand Assets Upload */}
+              <div className="glass-card-static" style={{ marginBottom: '30px', padding: '24px' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Upload Brand Asset</h3>
+                
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Asset Type</label>
+                    <select
+                      value={selectedAssetType}
+                      onChange={(e) => setSelectedAssetType(e.target.value)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: '#fff',
+                        color: '#333',
+                        fontSize: '14px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {assetTypes.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Description (Optional)</label>
+                    <input
+                      type="text"
+                      value={assetDescription}
+                      onChange={(e) => setAssetDescription(e.target.value)}
+                      placeholder="e.g., Main logo, Dark mode version"
+                    />
+                  </div>
+                </div>
+
+                <div {...getBrandRootProps()} className={`dropzone ${isBrandDragActive ? 'active' : ''} ${isUploading ? 'uploading' : ''}`}>
+                  <input {...getBrandInputProps()} />
+                  {isUploading ? (
+                    <><Loader2 className="dropzone-icon spinning" size={48} /><p>Uploading...</p></>
+                  ) : isBrandDragActive ? (
+                    <><Upload className="dropzone-icon" size={48} /><p>Drop image here...</p></>
+                  ) : (
+                    <><Upload className="dropzone-icon" size={48} /><p>Drag & drop brand asset here, or click to select</p><span className="dropzone-hint">Image only (max 10MB)</span></>
+                  )}
+                </div>
+              </div>
+
+              {/* Brand Assets Gallery */}
+              <div className="admin-section">
+                <h3>Brand Assets ({(branding?.brandAssets || []).length})</h3>
+                <div className="file-grid">
+                  {branding?.brandAssets && branding.brandAssets.length > 0 ? (
+                    branding.brandAssets.map((asset) => (
+                      <motion.div
+                        key={asset.id}
+                        className="file-card"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                      >
+                        <div className="file-preview">
+                          <img src={asset.imageUrl} alt={asset.assetType} style={{ objectFit: 'cover' }} />
+                          <div className="file-type-badge" style={{ backgroundColor: '#667eea' }}>
+                            <span style={{ fontSize: '12px', fontWeight: '600' }}>
+                              {assetTypes.find(t => t.value === asset.assetType)?.label || asset.assetType}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="file-info">
+                          <span className="file-name" title={asset.description}>{asset.description || asset.assetType}</span>
+                          <span className="file-size" style={{ fontSize: '12px', color: '#999' }}>
+                            {new Date(asset.uploadedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="file-actions">
+                          <button
+                            className="file-action-btn delete"
+                            onClick={() => deleteBrandAsset(asset.id)}
+                            title="Delete asset"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+                      <Palette size={48} />
+                      <p>No brand assets uploaded yet. Upload images to start building your brand identity.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

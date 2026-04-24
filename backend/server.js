@@ -550,6 +550,220 @@ app.delete('/api/webprojects/:id', async (req, res) => {
   }
 });
 
+// ========================
+// PROJECT BRANDING API
+// ========================
+
+// Get project branding
+app.get('/api/branding', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('project_branding')
+      .select('*')
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Supabase fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch branding'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      branding: data || null
+    });
+  } catch (error) {
+    console.error('Get branding error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch branding'
+    });
+  }
+});
+
+// Create or update project branding
+app.post('/api/branding', async (req, res) => {
+  try {
+    const { projectName, projectDescription, brandAssets } = req.body;
+
+    if (!projectName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project name is required'
+      });
+    }
+
+    // Try to get existing branding
+    const { data: existing } = await supabase
+      .from('project_branding')
+      .select('id')
+      .single();
+
+    let result;
+    if (existing) {
+      // Update existing
+      result = await supabase
+        .from('project_branding')
+        .update({
+          projectName,
+          projectDescription: projectDescription || '',
+          brandAssets: brandAssets || [],
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id)
+        .select();
+    } else {
+      // Insert new
+      result = await supabase
+        .from('project_branding')
+        .insert([{
+          projectName,
+          projectDescription: projectDescription || '',
+          brandAssets: brandAssets || [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select();
+    }
+
+    const { data, error } = result;
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save branding',
+        error: error.message
+      });
+    }
+
+    res.status(existing ? 200 : 201).json({
+      success: true,
+      message: existing ? 'Branding updated' : 'Branding created',
+      branding: data[0]
+    });
+  } catch (error) {
+    console.error('Save branding error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save branding'
+    });
+  }
+});
+
+// Add brand asset
+app.post('/api/branding/assets', async (req, res) => {
+  try {
+    const { imageUrl, assetType, description } = req.body;
+
+    if (!imageUrl || !assetType) {
+      return res.status(400).json({
+        success: false,
+        message: 'Image URL and asset type are required'
+      });
+    }
+
+    // Get existing branding
+    const { data: branding } = await supabase
+      .from('project_branding')
+      .select('*')
+      .single();
+
+    if (!branding) {
+      return res.status(404).json({
+        success: false,
+        message: 'Branding not found. Create branding first.'
+      });
+    }
+
+    const newAsset = {
+      id: uuidv4(),
+      imageUrl,
+      assetType,
+      description: description || '',
+      uploadedAt: new Date().toISOString()
+    };
+
+    const updatedAssets = [...(branding.brandAssets || []), newAsset];
+
+    const { data, error } = await supabase
+      .from('project_branding')
+      .update({ brandAssets: updatedAssets })
+      .eq('id', branding.id)
+      .select();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to add asset'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Asset added',
+      branding: data[0]
+    });
+  } catch (error) {
+    console.error('Add asset error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add asset'
+    });
+  }
+});
+
+// Delete brand asset
+app.delete('/api/branding/assets/:assetId', async (req, res) => {
+  try {
+    const { assetId } = req.params;
+
+    // Get existing branding
+    const { data: branding } = await supabase
+      .from('project_branding')
+      .select('*')
+      .single();
+
+    if (!branding) {
+      return res.status(404).json({
+        success: false,
+        message: 'Branding not found'
+      });
+    }
+
+    const updatedAssets = (branding.brandAssets || []).filter(asset => asset.id !== assetId);
+
+    const { data, error } = await supabase
+      .from('project_branding')
+      .update({ brandAssets: updatedAssets })
+      .eq('id', branding.id)
+      .select();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete asset'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Asset deleted',
+      branding: data[0]
+    });
+  } catch (error) {
+    console.error('Delete asset error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete asset'
+    });
+  }
+});
+
 // Contact form endpoint
 app.post('/api/contact', contactLimiter, contactValidation, async (req, res) => {
   try {

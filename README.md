@@ -93,6 +93,7 @@ IgiegbaBright/
    npm run dev
    ```
    The frontend will run on `http://localhost:5173`
+   Uses Vite proxy for API requests in development (`/api` -> `http://localhost:5000`)
 
 ### Environment Variables (Backend)
 
@@ -116,6 +117,14 @@ RECIPIENT_EMAIL=your-email@gmail.com
 
 **Note**: For Gmail, you need to use an App Password. Enable 2-Step Verification in your Google Account, then create an App Password at: Google Account > Security > App passwords.
 
+### Environment Variables (Frontend - Production)
+
+Set this in your hosting provider (Vercel/Netlify/etc):
+
+```env
+VITE_API_URL=https://your-backend-domain.vercel.app
+```
+
 ### Development Mode
 
 The backend works without SMTP configuration in development mode. Contact form submissions will be logged to the console instead of sending emails.
@@ -125,10 +134,13 @@ The backend works without SMTP configuration in development mode. Contact form s
 ### Adding Your Own Content
 
 1. **Personal Info**: Update `Contact.jsx` with your email, phone, and location
-2. **Projects**: Modify the project arrays in `Projects.jsx`:
-   - `designProjects` - Your graphic/brand design work
-   - `webProjects` - Your web applications
-   - `hardwareProjects` - Your IoT/hardware projects
+2. **Projects**: Update `frontend/src/data/projectsData.js`:
+   - `graphicDesignProjects` - Your graphic design work
+   - `brandingDesignProjects` - Your branding design work
+   - `webAppProjects` - Your web applications (always shown in Featured Projects, plus any API-added items)
+   - Uploaded project files from Supabase `project` bucket are also shown on the homepage.
+     Category is inferred from filename (`brand`/`logo`/`identity` → Branding, `web`/`app`/`site`/`ui` → Web, otherwise Graphic).
+     In Admin > Project Images & Videos, choose an upload category before dropping multiple files.
 3. **Skills**: Update skill lists in `Skills.jsx`
 4. **About**: Personalize the narrative in `About.jsx`
 5. **Images**: Replace placeholder URLs with your actual project images/videos
@@ -165,7 +177,8 @@ npm start
 
 1. **Frontend**: Deploy the `dist` folder to Vercel, Netlify, or similar
 2. **Backend**: Deploy to Railway, Render, or any Node.js host
-3. **Update CORS**: Set `FRONTEND_URL` in backend `.env` to your production frontend URL
+3. **Set frontend API URL**: Configure `VITE_API_URL` in frontend hosting settings to your backend URL
+4. **Update CORS**: Set `FRONTEND_URL` in backend `.env` to your production frontend URL (supports comma-separated values)
 
 ## License
 

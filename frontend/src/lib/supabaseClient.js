@@ -13,18 +13,28 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  * Upload file directly to Supabase
  * @param {File} file - File to upload
  * @param {string} bucket - Bucket name ('project' or 'profile')
+ * @param {{category?: string}} options - Optional upload metadata
  * @returns {Promise<{success, url, error}>}
  */
-export const uploadToSupabaseDirect = async (file, bucket = 'project') => {
+export const uploadToSupabaseDirect = async (file, bucket = 'project', options = {}) => {
   try {
+    const sanitizeFilePart = (value = '') => value
+      .toLowerCase()
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[^a-z0-9-_]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+
     // Generate unique filename
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
-    const ext = file.name.split('.').pop();
-    const uniqueFileName = `${timestamp}-${random}.${ext}`;
+    const ext = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+    const originalNamePart = sanitizeFilePart(file.name) || 'file';
+    const categoryPrefix = options?.category ? `${sanitizeFilePart(options.category)}-` : '';
+    const uniqueFileName = `${categoryPrefix}${timestamp}-${random}-${originalNamePart}${ext ? `.${ext}` : ''}`;
 
     // Upload file directly to Supabase
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from(bucket)
       .upload(uniqueFileName, file, {
         cacheControl: '3600',

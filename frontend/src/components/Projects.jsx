@@ -28,7 +28,7 @@ const Projects = ({ openLightbox }) => {
 
   const inferFileCategory = (filename = '') => {
     const normalized = filename.toLowerCase()
-    if (normalized.includes('brand') || normalized.includes('logo')) return 'branding'
+    if (normalized.includes('brand') || normalized.includes('logo') || normalized.includes('identity')) return 'branding'
     if (normalized.includes('web') || normalized.includes('app') || normalized.includes('site') || normalized.includes('ui')) return 'web'
     return 'graphic'
   }

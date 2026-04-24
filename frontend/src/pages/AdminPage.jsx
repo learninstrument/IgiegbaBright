@@ -22,7 +22,8 @@ import {
   ExternalLink,
   Github,
   Edit3,
-  Palette
+  Palette,
+  Brush
 } from 'lucide-react'
 import { uploadToSupabaseDirect, deleteFromSupabaseDirect, listFilesFromSupabase } from '../lib/supabaseClient'
 
@@ -56,12 +57,34 @@ const AdminPage = () => {
   const [selectedAssetType, setSelectedAssetType] = useState('logo')
   const [assetDescription, setAssetDescription] = useState('')
   const [showBrandingForm, setShowBrandingForm] = useState(false)
+  
+  // Design Projects state
+  const [designProjects, setDesignProjects] = useState([])
+  const [editingDesignProject, setEditingDesignProject] = useState(null)
+  const [showDesignProjectForm, setShowDesignProjectForm] = useState(false)
+  const [designProjectForm, setDesignProjectForm] = useState({
+    name: '',
+    description: ''
+  })
+  const [selectedDesignProject, setSelectedDesignProject] = useState(null)
+  
+  // Brand Projects state
+  const [brandProjects, setBrandProjects] = useState([])
+  const [editingBrandProject, setEditingBrandProject] = useState(null)
+  const [showBrandProjectForm, setShowBrandProjectForm] = useState(false)
+  const [brandProjectForm, setBrandProjectForm] = useState({
+    name: '',
+    description: ''
+  })
+  const [selectedBrandProject, setSelectedBrandProject] = useState(null)
 
   useEffect(() => {
     fetchUploadedFiles()
     fetchProfileFiles()
     fetchWebProjects()
     fetchBranding()
+    fetchDesignProjects()
+    fetchBrandProjects()
   }, [])
 
   const fetchUploadedFiles = async () => {
@@ -105,6 +128,26 @@ const AdminPage = () => {
       }
     } catch (error) {
       console.error('Failed to fetch branding:', error)
+    }
+  }
+
+  const fetchDesignProjects = async () => {
+    try {
+      const res = await fetch(`${API_URL}/design-projects`)
+      const data = await res.json()
+      if (data.success) setDesignProjects(data.projects)
+    } catch (error) {
+      console.error('Failed to fetch design projects:', error)
+    }
+  }
+
+  const fetchBrandProjects = async () => {
+    try {
+      const res = await fetch(`${API_URL}/brand-projects`)
+      const data = await res.json()
+      if (data.success) setBrandProjects(data.projects)
+    } catch (error) {
+      console.error('Failed to fetch brand projects:', error)
     }
   }
 
@@ -355,6 +398,258 @@ const AdminPage = () => {
     maxFiles: 1
   })
 
+  // Design Projects handlers
+  const handleDesignProjectSubmit = async (e) => {
+    e.preventDefault()
+    setIsSaving(true)
+
+    try {
+      const url = editingDesignProject
+        ? `${API_URL}/design-projects/${editingDesignProject.id}`
+        : `${API_URL}/design-projects`
+
+      const res = await fetch(url, {
+        method: editingDesignProject ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: designProjectForm.name,
+          description: designProjectForm.description,
+          images: editingDesignProject?.images || []
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', editingDesignProject ? 'Design project updated!' : 'Design project created!')
+        fetchDesignProjects()
+        resetDesignProjectForm()
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to save design project')
+    }
+    setIsSaving(false)
+  }
+
+  const handleAddDesignImage = async (file) => {
+    if (!selectedDesignProject) {
+      showMessage('error', 'Please select a design project first')
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      const result = await uploadToSupabaseDirect(file, 'design')
+      if (!result.success) {
+        showMessage('error', `Upload failed: ${result.error}`)
+        setIsUploading(false)
+        return
+      }
+
+      const updatedImages = [...(selectedDesignProject.images || []), { id: Date.now().toString(), url: result.url }]
+      const res = await fetch(`${API_URL}/design-projects/${selectedDesignProject.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...selectedDesignProject, images: updatedImages })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', 'Design image added!')
+        fetchDesignProjects()
+        setSelectedDesignProject(data.project)
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to add design image')
+    }
+    setIsUploading(false)
+  }
+
+  const deleteDesignProject = async (id) => {
+    if (!confirm('Are you sure you want to delete this project?')) return
+    try {
+      const res = await fetch(`${API_URL}/design-projects/${id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', 'Design project deleted')
+        fetchDesignProjects()
+        setSelectedDesignProject(null)
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to delete design project')
+    }
+  }
+
+  const deleteDesignImage = async (projectId, imageId) => {
+    if (!confirm('Are you sure you want to delete this image?')) return
+    try {
+      const project = designProjects.find(p => p.id === projectId)
+      const updatedImages = project.images.filter(img => img.id !== imageId)
+      const res = await fetch(`${API_URL}/design-projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...project, images: updatedImages })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', 'Image deleted')
+        fetchDesignProjects()
+        setSelectedDesignProject(data.project)
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to delete image')
+    }
+  }
+
+  const resetDesignProjectForm = () => {
+    setDesignProjectForm({ name: '', description: '' })
+    setEditingDesignProject(null)
+    setShowDesignProjectForm(false)
+  }
+
+  // Brand Projects handlers
+  const handleBrandProjectSubmit = async (e) => {
+    e.preventDefault()
+    setIsSaving(true)
+
+    try {
+      const url = editingBrandProject
+        ? `${API_URL}/brand-projects/${editingBrandProject.id}`
+        : `${API_URL}/brand-projects`
+
+      const res = await fetch(url, {
+        method: editingBrandProject ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: brandProjectForm.name,
+          description: brandProjectForm.description,
+          images: editingBrandProject?.images || []
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', editingBrandProject ? 'Brand project updated!' : 'Brand project created!')
+        fetchBrandProjects()
+        resetBrandProjectForm()
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to save brand project')
+    }
+    setIsSaving(false)
+  }
+
+  const handleAddBrandImage = async (file) => {
+    if (!selectedBrandProject) {
+      showMessage('error', 'Please select a brand project first')
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      const result = await uploadToSupabaseDirect(file, 'brand')
+      if (!result.success) {
+        showMessage('error', `Upload failed: ${result.error}`)
+        setIsUploading(false)
+        return
+      }
+
+      const updatedImages = [...(selectedBrandProject.images || []), { id: Date.now().toString(), url: result.url }]
+      const res = await fetch(`${API_URL}/brand-projects/${selectedBrandProject.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...selectedBrandProject, images: updatedImages })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', 'Brand image added!')
+        fetchBrandProjects()
+        setSelectedBrandProject(data.project)
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to add brand image')
+    }
+    setIsUploading(false)
+  }
+
+  const deleteBrandProject = async (id) => {
+    if (!confirm('Are you sure you want to delete this project?')) return
+    try {
+      const res = await fetch(`${API_URL}/brand-projects/${id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', 'Brand project deleted')
+        fetchBrandProjects()
+        setSelectedBrandProject(null)
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to delete brand project')
+    }
+  }
+
+  const deleteBrandImage = async (projectId, imageId) => {
+    if (!confirm('Are you sure you want to delete this image?')) return
+    try {
+      const project = brandProjects.find(p => p.id === projectId)
+      const updatedImages = project.images.filter(img => img.id !== imageId)
+      const res = await fetch(`${API_URL}/brand-projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...project, images: updatedImages })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        showMessage('success', 'Image deleted')
+        fetchBrandProjects()
+        setSelectedBrandProject(data.project)
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (error) {
+      showMessage('error', 'Failed to delete image')
+    }
+  }
+
+  const resetBrandProjectForm = () => {
+    setBrandProjectForm({ name: '', description: '' })
+    setEditingBrandProject(null)
+    setShowBrandProjectForm(false)
+  }
+
+  const { getRootProps: getDesignRootProps, getInputProps: getDesignInputProps, isDragActive: isDesignDragActive } = useDropzone({
+    onDrop: (files) => {
+      if (files.length > 0 && selectedDesignProject) handleAddDesignImage(files[0])
+    },
+    accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'] },
+    maxSize: 10 * 1024 * 1024,
+    maxFiles: 1
+  })
+
+  const { getRootProps: getBrandProjectRootProps, getInputProps: getBrandProjectInputProps, isDragActive: isBrandProjectDragActive } = useDropzone({
+    onDrop: (files) => {
+      if (files.length > 0 && selectedBrandProject) handleAddBrandImage(files[0])
+    },
+    accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'] },
+    maxSize: 10 * 1024 * 1024,
+    maxFiles: 1
+  })
+
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B'
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
@@ -374,6 +669,8 @@ const AdminPage = () => {
 
   const tabs = [
     { id: 'webapps', label: 'Web Apps', icon: <Code2 size={18} /> },
+    { id: 'design', label: 'Graphic Design', icon: <Brush size={18} /> },
+    { id: 'brands', label: 'Brand Projects', icon: <Palette size={18} /> },
     { id: 'projects', label: 'Project Files', icon: <Layers size={18} /> },
     { id: 'branding', label: 'Project Branding', icon: <Palette size={18} /> },
     { id: 'profile', label: 'Profile Picture', icon: <User size={18} /> }
@@ -598,6 +895,338 @@ const AdminPage = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Graphic Design Projects Tab */}
+          {activeTab === 'design' && (
+            <div className="admin-section">
+              <div className="admin-section-header">
+                <div>
+                  <h2 className="admin-section-title">
+                    <Brush size={24} />
+                    Graphic Design Projects
+                  </h2>
+                  <p className="admin-section-desc">
+                    Organize and showcase your graphic design work by project. Upload multiple design images per project.
+                  </p>
+                </div>
+                {!showDesignProjectForm && (
+                  <button className="btn-primary" onClick={() => setShowDesignProjectForm(true)}>
+                    <Plus size={18} />
+                    New Design Project
+                  </button>
+                )}
+              </div>
+
+              {/* Design Project Form */}
+              {showDesignProjectForm && (
+                <motion.form
+                  className="project-form glass-card-static"
+                  onSubmit={handleDesignProjectSubmit}
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="form-header">
+                    <h3>{editingDesignProject ? 'Edit Design Project' : 'New Design Project'}</h3>
+                    <button type="button" className="close-btn" onClick={resetDesignProjectForm}>
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="form-grid">
+                    <div className="form-group full-width">
+                      <label>Project Name *</label>
+                      <input
+                        type="text"
+                        value={designProjectForm.name}
+                        onChange={(e) => setDesignProjectForm({ ...designProjectForm, name: e.target.value })}
+                        placeholder="e.g., Modern Website Redesign"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label>Project Description</label>
+                      <textarea
+                        value={designProjectForm.description}
+                        onChange={(e) => setDesignProjectForm({ ...designProjectForm, description: e.target.value })}
+                        placeholder="Describe your graphic design project..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-actions">
+                    <button type="button" className="btn-secondary" onClick={resetDesignProjectForm}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn-primary" disabled={isSaving}>
+                      {isSaving ? <><Loader2 className="spinning" size={18} /> Saving...</> : <><Save size={18} /> Save Project</>}
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+
+              {/* Design Projects List */}
+              <div className="projects-list">
+                {designProjects.map((project) => (
+                  <motion.div
+                    key={project.id}
+                    className="project-card glass-card-static"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSelectedDesignProject(project)}
+                  >
+                    <div className="project-card-image">
+                      {project.images && project.images.length > 0 ? (
+                        <img src={project.images[0].url} alt={project.name} />
+                      ) : (
+                        <div className="no-image"><Brush size={32} /></div>
+                      )}
+                      {project.images && project.images.length > 0 && (
+                        <div style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: '#667eea', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}>
+                          {project.images.length} images
+                        </div>
+                      )}
+                    </div>
+                    <div className="project-card-content">
+                      <h4>{project.name}</h4>
+                      <p>{project.description || 'No description'}</p>
+                    </div>
+                    <div className="project-card-actions">
+                      <button onClick={() => setEditingDesignProject(project) || setShowDesignProjectForm(true)} title="Edit">
+                        <Edit3 size={16} />
+                      </button>
+                      <button onClick={() => deleteDesignProject(project.id)} title="Delete" className="delete">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+
+                {designProjects.length === 0 && !showDesignProjectForm && (
+                  <div className="empty-state">
+                    <Brush size={48} />
+                    <p>No design projects yet. Create one to start organizing your work.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Design Project - Upload Images */}
+              {selectedDesignProject && (
+                <motion.div
+                  className="glass-card-static"
+                  style={{ marginTop: '30px', padding: '24px' }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <h3 style={{ marginTop: 0, marginBottom: '16px' }}>
+                    {selectedDesignProject.name} - Upload Images
+                  </h3>
+
+                  <div {...getDesignRootProps()} className={`dropzone ${isDesignDragActive ? 'active' : ''} ${isUploading ? 'uploading' : ''}`}>
+                    <input {...getDesignInputProps()} />
+                    {isUploading ? (
+                      <><Loader2 className="dropzone-icon spinning" size={48} /><p>Uploading...</p></>
+                    ) : isDesignDragActive ? (
+                      <><Upload className="dropzone-icon" size={48} /><p>Drop image here...</p></>
+                    ) : (
+                      <><Upload className="dropzone-icon" size={48} /><p>Drag & drop design images here</p><span className="dropzone-hint">Images (max 10MB)</span></>
+                    )}
+                  </div>
+
+                  <h4 style={{ marginTop: '24px', marginBottom: '16px' }}>Design Images ({selectedDesignProject.images?.length || 0})</h4>
+                  <div className="file-grid">
+                    {selectedDesignProject.images && selectedDesignProject.images.length > 0 ? (
+                      selectedDesignProject.images.map((image) => (
+                        <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                          <div className="file-preview">
+                            <img src={image.url} alt="Design" />
+                          </div>
+                          <div className="file-actions">
+                            <button className="file-action-btn delete" onClick={() => deleteDesignImage(selectedDesignProject.id, image.id)}>
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+                        <Image size={48} />
+                        <p>No images uploaded yet</p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          )}
+
+          {/* Brand Projects Tab */}
+          {activeTab === 'brands' && (
+            <div className="admin-section">
+              <div className="admin-section-header">
+                <div>
+                  <h2 className="admin-section-title">
+                    <Palette size={24} />
+                    Brand Identity Projects
+                  </h2>
+                  <p className="admin-section-desc">
+                    Showcase your brand identity work. Upload multiple brand design slides per project.
+                  </p>
+                </div>
+                {!showBrandProjectForm && (
+                  <button className="btn-primary" onClick={() => setShowBrandProjectForm(true)}>
+                    <Plus size={18} />
+                    New Brand Project
+                  </button>
+                )}
+              </div>
+
+              {/* Brand Project Form */}
+              {showBrandProjectForm && (
+                <motion.form
+                  className="project-form glass-card-static"
+                  onSubmit={handleBrandProjectSubmit}
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="form-header">
+                    <h3>{editingBrandProject ? 'Edit Brand Project' : 'New Brand Project'}</h3>
+                    <button type="button" className="close-btn" onClick={resetBrandProjectForm}>
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="form-grid">
+                    <div className="form-group full-width">
+                      <label>Brand Project Name *</label>
+                      <input
+                        type="text"
+                        value={brandProjectForm.name}
+                        onChange={(e) => setBrandProjectForm({ ...brandProjectForm, name: e.target.value })}
+                        placeholder="e.g., Nike Brand Redesign 2024"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group full-width">
+                      <label>Brand Description</label>
+                      <textarea
+                        value={brandProjectForm.description}
+                        onChange={(e) => setBrandProjectForm({ ...brandProjectForm, description: e.target.value })}
+                        placeholder="Describe the brand identity concept, inspiration, and design process..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-actions">
+                    <button type="button" className="btn-secondary" onClick={resetBrandProjectForm}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn-primary" disabled={isSaving}>
+                      {isSaving ? <><Loader2 className="spinning" size={18} /> Saving...</> : <><Save size={18} /> Save Project</>}
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+
+              {/* Brand Projects List */}
+              <div className="projects-list">
+                {brandProjects.map((project) => (
+                  <motion.div
+                    key={project.id}
+                    className="project-card glass-card-static"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSelectedBrandProject(project)}
+                  >
+                    <div className="project-card-image">
+                      {project.images && project.images.length > 0 ? (
+                        <img src={project.images[0].url} alt={project.name} />
+                      ) : (
+                        <div className="no-image"><Palette size={32} /></div>
+                      )}
+                      {project.images && project.images.length > 0 && (
+                        <div style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: '#667eea', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}>
+                          {project.images.length} slides
+                        </div>
+                      )}
+                    </div>
+                    <div className="project-card-content">
+                      <h4>{project.name}</h4>
+                      <p>{project.description || 'No description'}</p>
+                    </div>
+                    <div className="project-card-actions">
+                      <button onClick={() => setEditingBrandProject(project) || setShowBrandProjectForm(true)} title="Edit">
+                        <Edit3 size={16} />
+                      </button>
+                      <button onClick={() => deleteBrandProject(project.id)} title="Delete" className="delete">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+
+                {brandProjects.length === 0 && !showBrandProjectForm && (
+                  <div className="empty-state">
+                    <Palette size={48} />
+                    <p>No brand projects yet. Create one to showcase your brand identity work.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Brand Project - Upload Images */}
+              {selectedBrandProject && (
+                <motion.div
+                  className="glass-card-static"
+                  style={{ marginTop: '30px', padding: '24px' }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <h3 style={{ marginTop: 0, marginBottom: '16px' }}>
+                    {selectedBrandProject.name} - Upload Brand Slides
+                  </h3>
+
+                  <div {...getBrandProjectRootProps()} className={`dropzone ${isBrandProjectDragActive ? 'active' : ''} ${isUploading ? 'uploading' : ''}`}>
+                    <input {...getBrandProjectInputProps()} />
+                    {isUploading ? (
+                      <><Loader2 className="dropzone-icon spinning" size={48} /><p>Uploading...</p></>
+                    ) : isBrandProjectDragActive ? (
+                      <><Upload className="dropzone-icon" size={48} /><p>Drop slide here...</p></>
+                    ) : (
+                      <><Upload className="dropzone-icon" size={48} /><p>Drag & drop brand slides here</p><span className="dropzone-hint">Images (max 10MB)</span></>
+                    )}
+                  </div>
+
+                  <h4 style={{ marginTop: '24px', marginBottom: '16px' }}>Brand Slides ({selectedBrandProject.images?.length || 0})</h4>
+                  <div className="file-grid">
+                    {selectedBrandProject.images && selectedBrandProject.images.length > 0 ? (
+                      selectedBrandProject.images.map((image) => (
+                        <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                          <div className="file-preview">
+                            <img src={image.url} alt="Brand" />
+                          </div>
+                          <div className="file-actions">
+                            <button className="file-action-btn delete" onClick={() => deleteBrandImage(selectedBrandProject.id, image.id)}>
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+                        <Image size={48} />
+                        <p>No slides uploaded yet</p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
             </div>
           )}
 

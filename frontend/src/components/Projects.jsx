@@ -18,6 +18,8 @@ import {
 const Projects = ({ openLightbox }) => {
   const [activeTab, setActiveTab] = useState('all')
   const [apiWebProjects, setApiWebProjects] = useState([])
+  const [apiDesignProjects, setApiDesignProjects] = useState([])
+  const [apiBrandProjects, setApiBrandProjects] = useState([])
   const [projectFiles, setProjectFiles] = useState([])
   const [ref, inView] = useInView({
     threshold: 0.1,
@@ -69,6 +71,36 @@ const Projects = ({ openLightbox }) => {
       }
     }
 
+    const fetchDesignProjects = async () => {
+      try {
+        const res = await fetchApi('/design-projects')
+        const data = await res.json()
+        if (res.ok && data.success) {
+          setApiDesignProjects(data.projects || [])
+        } else {
+          setApiDesignProjects([])
+        }
+      } catch (error) {
+        console.error('Failed to fetch design projects:', error)
+        setApiDesignProjects([])
+      }
+    }
+
+    const fetchBrandProjects = async () => {
+      try {
+        const res = await fetchApi('/brand-projects')
+        const data = await res.json()
+        if (res.ok && data.success) {
+          setApiBrandProjects(data.projects || [])
+        } else {
+          setApiBrandProjects([])
+        }
+      } catch (error) {
+        console.error('Failed to fetch brand projects:', error)
+        setApiBrandProjects([])
+      }
+    }
+
     const fetchProjectFiles = async () => {
       try {
         const files = await listFilesFromSupabase('project')
@@ -80,6 +112,8 @@ const Projects = ({ openLightbox }) => {
     }
 
     fetchWebProjects()
+    fetchDesignProjects()
+    fetchBrandProjects()
     fetchProjectFiles()
   }, [])
 
@@ -113,8 +147,29 @@ const Projects = ({ openLightbox }) => {
       technologies: []
     }))
 
-  const featuredGraphicProjects = dedupeProjects([...graphicDesignProjects, ...graphicFileProjects])
-  const featuredBrandingProjects = dedupeProjects([...brandingDesignProjects, ...brandingFileProjects])
+  // Transform API design projects into display format
+  const apiDesignProjectsTransformed = apiDesignProjects.map(project => ({
+    id: `api-graphic-${project.id}`,
+    title: project.name,
+    category: 'Graphic Design',
+    image: project.images?.[0]?.url || '',
+    description: project.description,
+    images: project.images || [],
+    wide: true
+  }))
+
+  // Transform API brand projects into display format
+  const apiBrandProjectsTransformed = apiBrandProjects.map(project => ({
+    id: `api-brand-${project.id}`,
+    title: project.name,
+    category: 'Branding Design',
+    image: project.images?.[0]?.url || '',
+    description: project.description,
+    images: project.images || []
+  }))
+
+  const featuredGraphicProjects = dedupeProjects([...graphicDesignProjects, ...graphicFileProjects, ...apiDesignProjectsTransformed])
+  const featuredBrandingProjects = dedupeProjects([...brandingDesignProjects, ...brandingFileProjects, ...apiBrandProjectsTransformed])
   const featuredWebProjects = dedupeProjects([...webAppProjects, ...webFileProjects, ...apiWebProjects])
 
   const tabs = [

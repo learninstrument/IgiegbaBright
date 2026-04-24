@@ -551,6 +551,314 @@ app.delete('/api/webprojects/:id', async (req, res) => {
 });
 
 // ========================
+// DESIGN PROJECTS API
+// ========================
+
+// Get all design projects
+app.get('/api/design-projects', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('design_projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Supabase fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch design projects'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      projects: data || []
+    });
+  } catch (error) {
+    console.error('Get design projects error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch design projects'
+    });
+  }
+});
+
+// Add new design project
+app.post('/api/design-projects', async (req, res) => {
+  try {
+    const { name, description } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project name is required'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('design_projects')
+      .insert([{
+        name,
+        description: description || '',
+        images: []
+      }])
+      .select();
+
+    if (error) {
+      console.error('Supabase insert error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create design project',
+        error: error.message
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Design project created',
+      project: data[0]
+    });
+  } catch (error) {
+    console.error('Add design project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create design project'
+    });
+  }
+});
+
+// Update design project
+app.put('/api/design-projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, images } = req.body;
+
+    const { data, error } = await supabase
+      .from('design_projects')
+      .update({
+        name: name || undefined,
+        description: description !== undefined ? description : undefined,
+        images: images !== undefined ? images : undefined,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      console.error('Supabase update error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update design project'
+      });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Design project not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Design project updated',
+      project: data[0]
+    });
+  } catch (error) {
+    console.error('Update design project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update design project'
+    });
+  }
+});
+
+// Delete design project
+app.delete('/api/design-projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('design_projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Supabase delete error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete design project'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Design project deleted'
+    });
+  } catch (error) {
+    console.error('Delete design project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete design project'
+    });
+  }
+});
+
+// ========================
+// BRAND PROJECTS API
+// ========================
+
+// Get all brand projects
+app.get('/api/brand-projects', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('brand_projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Supabase fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch brand projects'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      projects: data || []
+    });
+  } catch (error) {
+    console.error('Get brand projects error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch brand projects'
+    });
+  }
+});
+
+// Add new brand project
+app.post('/api/brand-projects', async (req, res) => {
+  try {
+    const { name, description } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project name is required'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('brand_projects')
+      .insert([{
+        name,
+        description: description || '',
+        images: []
+      }])
+      .select();
+
+    if (error) {
+      console.error('Supabase insert error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create brand project',
+        error: error.message
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Brand project created',
+      project: data[0]
+    });
+  } catch (error) {
+    console.error('Add brand project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create brand project'
+    });
+  }
+});
+
+// Update brand project
+app.put('/api/brand-projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, images } = req.body;
+
+    const { data, error } = await supabase
+      .from('brand_projects')
+      .update({
+        name: name || undefined,
+        description: description !== undefined ? description : undefined,
+        images: images !== undefined ? images : undefined,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      console.error('Supabase update error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update brand project'
+      });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Brand project not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Brand project updated',
+      project: data[0]
+    });
+  } catch (error) {
+    console.error('Update brand project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update brand project'
+    });
+  }
+});
+
+// Delete brand project
+app.delete('/api/brand-projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('brand_projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Supabase delete error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete brand project'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Brand project deleted'
+    });
+  } catch (error) {
+    console.error('Delete brand project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete brand project'
+    });
+  }
+});
+
+// ========================
 // PROJECT BRANDING API
 // ========================
 

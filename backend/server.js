@@ -740,7 +740,7 @@ app.get('/api/brand-projects', async (req, res) => {
 // Add new brand project
 app.post('/api/brand-projects', async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, images } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -749,12 +749,20 @@ app.post('/api/brand-projects', async (req, res) => {
       });
     }
 
+    const safeImages = Array.isArray(images) ? images : [];
+    if (safeImages.length > 15) {
+      return res.status(400).json({
+        success: false,
+        message: 'A brand identity project can have a maximum of 15 slides'
+      });
+    }
+
     const { data, error } = await supabase
       .from('brand_projects')
       .insert([{
         name,
         description: description || '',
-        images: []
+        images: safeImages
       }])
       .select();
 
@@ -786,6 +794,13 @@ app.put('/api/brand-projects/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, images } = req.body;
+
+    if (images !== undefined && (!Array.isArray(images) || images.length > 15)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A brand identity project can have between 0 and 15 slides'
+      });
+    }
 
     const { data, error } = await supabase
       .from('brand_projects')

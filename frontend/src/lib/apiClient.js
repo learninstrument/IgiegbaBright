@@ -53,7 +53,7 @@ export const fetchApi = async (path, options = {}) => {
         ...options
       })
 
-      if (response.ok && isHtmlResponse(response)) {
+      if (isHtmlResponse(response)) {
         lastError = new Error(`Invalid API response from ${endpoint}`)
         continue
       }

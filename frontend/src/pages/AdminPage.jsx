@@ -24,9 +24,7 @@ import {
   Palette
 } from 'lucide-react'
 import { uploadToSupabaseDirect, deleteFromSupabaseDirect, listFilesFromSupabase } from '../lib/supabaseClient'
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-const API_URL = `${API_BASE_URL}/api`
+import { fetchApi } from '../lib/apiClient'
 
 const imageAccept = {
   'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.svg']
@@ -36,6 +34,26 @@ const createImageItem = (url, index) => ({
   id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
   url
 })
+
+const requestJson = async (path, options = {}) => {
+  const response = await fetchApi(path, options)
+
+  try {
+    const data = await response.json()
+    if (typeof data.success !== 'boolean') {
+      data.success = response.ok
+    }
+    if (!response.ok && !data.message) {
+      data.message = `Request failed (${response.status})`
+    }
+    return data
+  } catch {
+    return {
+      success: false,
+      message: 'Could not connect to the server API. Check backend URL and deployment.'
+    }
+  }
+}
 
 const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('projects')
@@ -107,8 +125,7 @@ const AdminPage = () => {
 
   const fetchWebProjects = async () => {
     try {
-      const res = await fetch(`${API_URL}/webprojects`)
-      const data = await res.json()
+      const data = await requestJson('/webprojects')
       setWebProjects(data.success ? (data.projects || []) : [])
     } catch (error) {
       console.error('Failed to fetch web projects:', error)
@@ -118,8 +135,7 @@ const AdminPage = () => {
 
   const fetchDesignProjects = async () => {
     try {
-      const res = await fetch(`${API_URL}/design-projects`)
-      const data = await res.json()
+      const data = await requestJson('/design-projects')
       setDesignProjects(data.success ? (data.projects || []) : [])
     } catch (error) {
       console.error('Failed to fetch design projects:', error)
@@ -129,8 +145,7 @@ const AdminPage = () => {
 
   const fetchBrandProjects = async () => {
     try {
-      const res = await fetch(`${API_URL}/brand-projects`)
-      const data = await res.json()
+      const data = await requestJson('/brand-projects')
       setBrandProjects(data.success ? (data.projects || []) : [])
     } catch (error) {
       console.error('Failed to fetch brand projects:', error)
@@ -216,11 +231,11 @@ const AdminPage = () => {
     const technologies = webForm.technologies.split(',').map(item => item.trim()).filter(Boolean)
 
     try {
-      const url = editingWebProjectId
-        ? `${API_URL}/webprojects/${editingWebProjectId}`
-        : `${API_URL}/webprojects`
+      const endpoint = editingWebProjectId
+        ? `/webprojects/${editingWebProjectId}`
+        : '/webprojects'
 
-      const res = await fetch(url, {
+      const data = await requestJson(endpoint, {
         method: editingWebProjectId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -233,7 +248,6 @@ const AdminPage = () => {
         })
       })
 
-      const data = await res.json()
       if (data.success) {
         showMessage('success', editingWebProjectId ? 'Web app updated' : 'Web app created')
         await fetchWebProjects()
@@ -252,8 +266,7 @@ const AdminPage = () => {
   const deleteWebProject = async (id) => {
     if (!confirm('Are you sure you want to delete this web app project?')) return
     try {
-      const res = await fetch(`${API_URL}/webprojects/${id}`, { method: 'DELETE' })
-      const data = await res.json()
+      const data = await requestJson(`/webprojects/${id}`, { method: 'DELETE' })
       if (data.success) {
         showMessage('success', 'Web app deleted')
         fetchWebProjects()
@@ -286,13 +299,13 @@ const AdminPage = () => {
     setIsSaving(true)
 
     try {
-      const url = editingDesignProjectId
-        ? `${API_URL}/design-projects/${editingDesignProjectId}`
-        : `${API_URL}/design-projects`
+      const endpoint = editingDesignProjectId
+        ? `/design-projects/${editingDesignProjectId}`
+        : '/design-projects'
 
       const existingProject = designProjects.find(project => String(project.id) === String(editingDesignProjectId))
 
-      const res = await fetch(url, {
+      const data = await requestJson(endpoint, {
         method: editingDesignProjectId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -302,7 +315,6 @@ const AdminPage = () => {
         })
       })
 
-      const data = await res.json()
       if (data.success) {
         showMessage('success', editingDesignProjectId ? 'Graphic project updated' : 'Graphic project created')
         setSelectedDesignProjectId(String(data.project?.id || ''))
@@ -322,8 +334,7 @@ const AdminPage = () => {
   const deleteDesignProject = async (id) => {
     if (!confirm('Are you sure you want to delete this graphic project?')) return
     try {
-      const res = await fetch(`${API_URL}/design-projects/${id}`, { method: 'DELETE' })
-      const data = await res.json()
+      const data = await requestJson(`/design-projects/${id}`, { method: 'DELETE' })
       if (data.success) {
         showMessage('success', 'Graphic project deleted')
         if (String(selectedDesignProjectId) === String(id)) {
@@ -368,7 +379,7 @@ const AdminPage = () => {
       }
 
       const updatedImages = [...(projectToUpload.images || []), ...uploaded]
-      const res = await fetch(`${API_URL}/design-projects/${projectToUpload.id}`, {
+      const data = await requestJson(`/design-projects/${projectToUpload.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -377,7 +388,6 @@ const AdminPage = () => {
         })
       })
 
-      const data = await res.json()
       if (data.success) {
         showMessage('success', `${uploaded.length} graphic image(s) uploaded`)
         setSelectedDesignProjectId(String(data.project.id))
@@ -403,13 +413,12 @@ const AdminPage = () => {
 
     try {
       const images = (project.images || []).filter(image => image.id !== imageId)
-      const res = await fetch(`${API_URL}/design-projects/${projectId}`, {
+      const data = await requestJson(`/design-projects/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...project, images })
       })
 
-      const data = await res.json()
       if (data.success) {
         showMessage('success', 'Graphic image deleted')
         setSelectedDesignProjectId(String(data.project.id))
@@ -443,13 +452,13 @@ const AdminPage = () => {
     setIsSaving(true)
 
     try {
-      const url = editingBrandProjectId
-        ? `${API_URL}/brand-projects/${editingBrandProjectId}`
-        : `${API_URL}/brand-projects`
+      const endpoint = editingBrandProjectId
+        ? `/brand-projects/${editingBrandProjectId}`
+        : '/brand-projects'
 
       const existingProject = brandProjects.find(project => String(project.id) === String(editingBrandProjectId))
 
-      const res = await fetch(url, {
+      const data = await requestJson(endpoint, {
         method: editingBrandProjectId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -459,7 +468,6 @@ const AdminPage = () => {
         })
       })
 
-      const data = await res.json()
       if (data.success) {
         showMessage('success', editingBrandProjectId ? 'Brand identity updated' : 'Brand identity created')
         setSelectedBrandProjectId(String(data.project?.id || ''))
@@ -479,8 +487,7 @@ const AdminPage = () => {
   const deleteBrandProject = async (id) => {
     if (!confirm('Are you sure you want to delete this brand identity project?')) return
     try {
-      const res = await fetch(`${API_URL}/brand-projects/${id}`, { method: 'DELETE' })
-      const data = await res.json()
+      const data = await requestJson(`/brand-projects/${id}`, { method: 'DELETE' })
       if (data.success) {
         showMessage('success', 'Brand identity project deleted')
         if (String(selectedBrandProjectId) === String(id)) {
@@ -525,7 +532,7 @@ const AdminPage = () => {
       }
 
       const updatedSlides = [...(projectToUpload.images || []), ...uploaded]
-      const res = await fetch(`${API_URL}/brand-projects/${projectToUpload.id}`, {
+      const data = await requestJson(`/brand-projects/${projectToUpload.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -534,7 +541,6 @@ const AdminPage = () => {
         })
       })
 
-      const data = await res.json()
       if (data.success) {
         showMessage('success', `${uploaded.length} brand slide(s) uploaded`)
         setSelectedBrandProjectId(String(data.project.id))
@@ -560,13 +566,12 @@ const AdminPage = () => {
 
     try {
       const images = (project.images || []).filter(image => image.id !== imageId)
-      const res = await fetch(`${API_URL}/brand-projects/${projectId}`, {
+      const data = await requestJson(`/brand-projects/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...project, images })
       })
 
-      const data = await res.json()
       if (data.success) {
         showMessage('success', 'Brand slide deleted')
         setSelectedBrandProjectId(String(data.project.id))

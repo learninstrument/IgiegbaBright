@@ -399,6 +399,9 @@ const AdminPage = () => {
       if (data.success) {
         showMessage('success', editingDesignProject ? 'Graphic design project updated!' : 'Graphic design project created!')
         fetchDesignProjects()
+        if (data.project) {
+          setSelectedDesignProject(data.project)
+        }
         resetDesignProjectForm()
       } else {
         showMessage('error', data.message || 'Failed to save graphic design project')
@@ -874,6 +877,15 @@ const AdminPage = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
+                              setSelectedDesignProject(project)
+                            }}
+                            title="Upload Images"
+                          >
+                            <Upload size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
                               openEditDesignProjectForm(project)
                             }}
                             title="Edit"
@@ -901,6 +913,14 @@ const AdminPage = () => {
                       </div>
                     )}
                   </div>
+
+                  {!selectedDesignProject && designProjects.length > 0 && (
+                    <div className="glass-card-static" style={{ marginTop: '1.5rem', padding: '1rem' }}>
+                      <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+                        Select a graphic project (or click the upload icon) to show the upload area.
+                      </p>
+                    </div>
+                  )}
 
                   {selectedDesignProject && (
                     <motion.div

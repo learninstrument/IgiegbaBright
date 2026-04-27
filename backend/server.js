@@ -191,6 +191,17 @@ const contactValidation = [
 // API ROUTES
 // ========================
 
+const resolveStorageBucket = (rawType = '') => {
+  const normalizedType = String(rawType || 'project').toLowerCase();
+  if (normalizedType === 'project' || normalizedType === 'projects' || normalizedType === 'brand' || normalizedType === 'brands') {
+    return 'project';
+  }
+  if (normalizedType === 'profile' || normalizedType === 'profiles') {
+    return 'profile';
+  }
+  return null;
+};
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
@@ -210,7 +221,14 @@ app.post('/api/upload/:type', uploadLimiter, upload.single('file'), async (req, 
       });
     }
 
-    const bucket = req.params.type || 'project';
+    const bucket = resolveStorageBucket(req.params.type);
+    if (!bucket) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid upload type. Use project or profile.'
+      });
+    }
+
     const result = await uploadToSupabase(req.file.buffer, req.file.originalname, bucket);
 
     if (!result.success) {
@@ -251,7 +269,14 @@ app.post('/api/upload/:type/multiple', uploadLimiter, upload.array('files', 10),
       });
     }
 
-    const bucket = req.params.type || 'project';
+    const bucket = resolveStorageBucket(req.params.type);
+    if (!bucket) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid upload type. Use project or profile.'
+      });
+    }
+
     const uploadedFiles = [];
 
     for (const file of req.files) {
@@ -292,7 +317,14 @@ app.post('/api/upload/:type/multiple', uploadLimiter, upload.array('files', 10),
 // Get list of uploaded files from Supabase
 app.get('/api/uploads/:type', async (req, res) => {
   try {
-    const bucket = req.params.type || 'project';
+    const bucket = resolveStorageBucket(req.params.type);
+    if (!bucket) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid upload type. Use project or profile.'
+      });
+    }
+
     const files = await listFiles(bucket);
 
     res.status(200).json({
@@ -317,13 +349,20 @@ app.post('/api/get-signed-url/:type', async (req, res) => {
     console.log('DEBUG: body:', req.body);
 
     const { fileName } = req.body;
-    const bucket = req.params.type || 'project';
+    const bucket = resolveStorageBucket(req.params.type);
 
     if (!fileName) {
       console.log('DEBUG: No fileName provided');
       return res.status(400).json({
         success: false,
         message: 'File name is required'
+      });
+    }
+
+    if (!bucket) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid upload type. Use project or profile.'
       });
     }
 
@@ -356,7 +395,14 @@ app.post('/api/get-signed-url/:type', async (req, res) => {
 // Delete file from Supabase
 app.delete('/api/upload/:type/:filename', async (req, res) => {
   try {
-    const bucket = req.params.type || 'project';
+    const bucket = resolveStorageBucket(req.params.type);
+    if (!bucket) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid upload type. Use project or profile.'
+      });
+    }
+
     const result = await deleteFromSupabase(req.params.filename, bucket);
 
     if (!result.success) {

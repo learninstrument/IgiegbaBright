@@ -28,6 +28,13 @@ import { uploadToSupabaseDirect, deleteFromSupabaseDirect, listFilesFromSupabase
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 const API_URL = `${API_BASE_URL}/api`
 const MAX_BRAND_SLIDES = 15
+const isImageFilename = (filename = '') => /\.(avif|jpe?g|png|gif|webp|svg)$/i.test(filename)
+const inferProjectFileCategory = (filename = '') => {
+  const normalized = filename.toLowerCase()
+  if (normalized.includes('brand') || normalized.includes('logo') || normalized.includes('identity')) return 'branding'
+  if (normalized.includes('web') || normalized.includes('app') || normalized.includes('site') || normalized.includes('ui')) return 'web'
+  return 'graphic'
+}
 
 const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('projects')
@@ -35,6 +42,7 @@ const AdminPage = () => {
   const [webProjects, setWebProjects] = useState([])
   const [designProjects, setDesignProjects] = useState([])
   const [brandProjects, setBrandProjects] = useState([])
+  const [legacyGraphicFiles, setLegacyGraphicFiles] = useState([])
 
   const [isUploading, setIsUploading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -127,6 +135,19 @@ const AdminPage = () => {
     }
   }
 
+  const fetchLegacyGraphicFiles = async () => {
+    try {
+      const files = await listFilesFromSupabase('project')
+      const graphicFiles = (files || []).filter((file) => (
+        isImageFilename(file.filename) && inferProjectFileCategory(file.filename) === 'graphic'
+      ))
+      setLegacyGraphicFiles(graphicFiles)
+    } catch (error) {
+      console.error('Failed to fetch legacy graphic files:', error)
+      setLegacyGraphicFiles([])
+    }
+  }
+
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -162,6 +183,17 @@ const AdminPage = () => {
       } catch (error) {
         console.error('Failed to fetch brand projects:', error)
         setBrandProjects([])
+      }
+
+      try {
+        const files = await listFilesFromSupabase('project')
+        const graphicFiles = (files || []).filter((file) => (
+          isImageFilename(file.filename) && inferProjectFileCategory(file.filename) === 'graphic'
+        ))
+        setLegacyGraphicFiles(graphicFiles)
+      } catch (error) {
+        console.error('Failed to fetch legacy graphic files:', error)
+        setLegacyGraphicFiles([])
       }
     }
 
@@ -216,6 +248,33 @@ const AdminPage = () => {
     } catch (error) {
       console.error('Profile delete error:', error)
       showMessage('error', 'Failed to delete profile picture')
+    }
+  }
+
+  const deleteLegacyGraphicFile = async (filename) => {
+    if (!confirm('Are you sure you want to delete this uploaded graphic file?')) return
+
+    try {
+      const result = await deleteFromSupabaseDirect(filename, 'project')
+      if (result.success) {
+        showMessage('success', 'Uploaded graphic file deleted')
+        fetchLegacyGraphicFiles()
+      } else {
+        showMessage('error', result.error || 'Failed to delete uploaded graphic file')
+      }
+    } catch (error) {
+      console.error('Legacy file delete error:', error)
+      showMessage('error', 'Failed to delete uploaded graphic file')
+    }
+  }
+
+  const copyFileUrl = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      showMessage('success', 'URL copied!')
+    } catch (error) {
+      console.error('Clipboard copy error:', error)
+      showMessage('error', 'Failed to copy URL')
     }
   }
 
@@ -753,6 +812,39 @@ const AdminPage = () => {
                       </div>
                     </motion.form>
                   )}
+
+                  <div className="glass-card-static" style={{ padding: '1rem', marginBottom: '1rem' }}>
+                    <h4 style={{ marginTop: 0, marginBottom: '0.5rem' }}>Already Uploaded Graphic Files</h4>
+                    <p style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+                      These are graphic files you uploaded earlier and that already show on your home page.
+                    </p>
+
+                    <div className="file-grid">
+                      {legacyGraphicFiles.length > 0 ? (
+                        legacyGraphicFiles.map((file) => (
+                          <motion.div key={file.filename} className="file-card" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                            <div className="file-preview">
+                              <img src={file.url} alt={file.filename} />
+                            </div>
+                            <div className="file-info">
+                              <span className="file-name" title={file.filename}>{file.filename}</span>
+                            </div>
+                            <div className="file-actions">
+                              <button className="file-action-btn copy" onClick={() => copyFileUrl(file.url)}>Copy URL</button>
+                              <button className="file-action-btn delete" onClick={() => deleteLegacyGraphicFile(file.filename)}>
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))
+                      ) : (
+                        <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '1.5rem 1rem' }}>
+                          <Image size={42} />
+                          <p>No previously uploaded graphic files found.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   <div className="projects-list">
                     {designProjects.map((project) => (

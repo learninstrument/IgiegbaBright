@@ -849,6 +849,81 @@ const AdminPage = () => {
                     </div>
                   </div>
 
+                  <motion.div
+                    className="glass-card-static"
+                    style={{ marginBottom: '1rem', padding: '1.25rem' }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <h4 style={{ marginTop: 0, marginBottom: '0.35rem' }}>
+                      Upload Graphic Images
+                    </h4>
+                    <p style={{ marginTop: 0, marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
+                      Pick a project and upload images directly.
+                    </p>
+
+                    {designProjects.length > 0 ? (
+                      <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+                        <label>Select Graphic Project</label>
+                        <select
+                          value={selectedDesignProject ? String(selectedDesignProject.id) : ''}
+                          onChange={(e) => {
+                            const project = designProjects.find((item) => String(item.id) === e.target.value)
+                            setSelectedDesignProject(project || null)
+                          }}
+                        >
+                          <option value="">Choose project...</option>
+                          {designProjects.map((project) => (
+                            <option key={project.id} value={String(project.id)}>
+                              {project.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <p style={{ margin: '0 0 0.85rem 0', color: 'var(--text-tertiary)' }}>
+                        Create a graphic project first, then upload images here.
+                      </p>
+                    )}
+
+                    {selectedDesignProject && (
+                      <>
+                        <div {...getDesignRootProps()} className={`dropzone ${isDesignDragActive ? 'active' : ''} ${isUploading ? 'uploading' : ''}`}>
+                          <input {...getDesignInputProps()} />
+                          {isUploading ? (
+                            <><Loader2 className="dropzone-icon spinning" size={48} /><p>Uploading...</p></>
+                          ) : isDesignDragActive ? (
+                            <><Upload className="dropzone-icon" size={48} /><p>Drop image here...</p></>
+                          ) : (
+                            <><Upload className="dropzone-icon" size={48} /><p>Drag & drop graphic images here</p><span className="dropzone-hint">Image files only (max 10MB)</span></>
+                          )}
+                        </div>
+
+                        <div className="file-grid">
+                          {selectedDesignProject.images?.length > 0 ? (
+                            selectedDesignProject.images.map((image) => (
+                              <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                                <div className="file-preview">
+                                  <img src={image.url} alt={`${selectedDesignProject.name} design`} />
+                                </div>
+                                <div className="file-actions">
+                                  <button className="file-action-btn delete" onClick={() => deleteDesignImage(selectedDesignProject.id, image.id)}>
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </motion.div>
+                            ))
+                          ) : (
+                            <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+                              <Image size={48} />
+                              <p>No images uploaded yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </motion.div>
+
                   <div className="projects-list">
                     {designProjects.map((project) => (
                       <motion.div
@@ -872,6 +947,18 @@ const AdminPage = () => {
                           <div className="project-card-tech">
                             <span className="tech-tag">{project.images?.length || 0} image(s)</span>
                           </div>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ padding: '0.5rem 0.8rem', fontSize: '0.8rem' }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedDesignProject(project)
+                            }}
+                          >
+                            <Upload size={14} />
+                            Upload Images
+                          </button>
                         </div>
                         <div className="project-card-actions">
                           <button
@@ -913,60 +1000,6 @@ const AdminPage = () => {
                       </div>
                     )}
                   </div>
-
-                  {!selectedDesignProject && designProjects.length > 0 && (
-                    <div className="glass-card-static" style={{ marginTop: '1.5rem', padding: '1rem' }}>
-                      <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                        Select a graphic project (or click the upload icon) to show the upload area.
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedDesignProject && (
-                    <motion.div
-                      className="glass-card-static"
-                      style={{ marginTop: '1.5rem', padding: '1.25rem' }}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      <h4 style={{ marginTop: 0, marginBottom: '0.75rem' }}>
-                        {selectedDesignProject.name} - Upload Images
-                      </h4>
-
-                      <div {...getDesignRootProps()} className={`dropzone ${isDesignDragActive ? 'active' : ''} ${isUploading ? 'uploading' : ''}`}>
-                        <input {...getDesignInputProps()} />
-                        {isUploading ? (
-                          <><Loader2 className="dropzone-icon spinning" size={48} /><p>Uploading...</p></>
-                        ) : isDesignDragActive ? (
-                          <><Upload className="dropzone-icon" size={48} /><p>Drop image here...</p></>
-                        ) : (
-                          <><Upload className="dropzone-icon" size={48} /><p>Drag & drop graphic images here</p><span className="dropzone-hint">Image files only (max 10MB)</span></>
-                        )}
-                      </div>
-
-                      <div className="file-grid">
-                        {selectedDesignProject.images?.length > 0 ? (
-                          selectedDesignProject.images.map((image) => (
-                            <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-                              <div className="file-preview">
-                                <img src={image.url} alt={`${selectedDesignProject.name} design`} />
-                              </div>
-                              <div className="file-actions">
-                                <button className="file-action-btn delete" onClick={() => deleteDesignImage(selectedDesignProject.id, image.id)}>
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </motion.div>
-                          ))
-                        ) : (
-                          <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                            <Image size={48} />
-                            <p>No images uploaded yet</p>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
                 </div>
 
                 <div className="project-files-block">

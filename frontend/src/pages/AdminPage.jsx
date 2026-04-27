@@ -316,15 +316,18 @@ const AdminPage = () => {
     setIsUploadingGraphic(true)
     try {
       const uploaded = []
+      const uploadErrors = []
       for (const [index, file] of files.entries()) {
         const result = await uploadToSupabaseDirect(file, 'project', { category: 'graphic' })
         if (result.success) {
           uploaded.push(createImageItem(result.url, index))
+        } else if (result.error) {
+          uploadErrors.push(result.error)
         }
       }
 
       if (uploaded.length === 0) {
-        showMessage('error', 'No file was uploaded')
+        showMessage('error', uploadErrors[0] || 'No file was uploaded')
         setIsUploadingGraphic(false)
         return
       }
@@ -468,15 +471,18 @@ const AdminPage = () => {
     setIsUploadingBrand(true)
     try {
       const uploaded = []
+      const uploadErrors = []
       for (const [index, file] of files.entries()) {
-        const result = await uploadToSupabaseDirect(file, 'brand', { category: 'slide' })
+        const result = await uploadToSupabaseDirect(file, 'project', { category: 'brand-slide' })
         if (result.success) {
           uploaded.push(createImageItem(result.url, index))
+        } else if (result.error) {
+          uploadErrors.push(result.error)
         }
       }
 
       if (uploaded.length === 0) {
-        showMessage('error', 'No slide was uploaded')
+        showMessage('error', uploadErrors[0] || 'No slide was uploaded')
         setIsUploadingBrand(false)
         return
       }

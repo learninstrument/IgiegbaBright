@@ -170,6 +170,7 @@ const Projects = ({ openLightbox }) => {
 
   const featuredGraphicProjects = dedupeProjects([...graphicDesignProjects, ...graphicFileProjects, ...apiDesignProjectsTransformed])
   const featuredBrandingProjects = dedupeProjects([...brandingDesignProjects, ...brandingFileProjects, ...apiBrandProjectsTransformed])
+  const fallbackBrandingProjects = dedupeProjects([...brandingDesignProjects, ...brandingFileProjects])
   const featuredWebProjects = dedupeProjects([...webAppProjects, ...webFileProjects, ...apiWebProjects])
 
   const tabs = [
@@ -186,6 +187,20 @@ const Projects = ({ openLightbox }) => {
       category: p.category || 'Design'
     }))
     openLightbox(designItems, index)
+  }
+
+  const openBrandProjectGallery = (project, startIndex = 0) => {
+    const slides = (project.images || [])
+      .filter(image => image?.url)
+      .map((image, index) => ({
+        image: image.url,
+        title: `${project.title || 'Brand Identity'} - Slide ${index + 1}`,
+        category: 'Brand Identity'
+      }))
+
+    if (slides.length > 0) {
+      openLightbox(slides, startIndex)
+    }
   }
 
   const normalizeTechnologies = (project) => {
@@ -258,12 +273,13 @@ const Projects = ({ openLightbox }) => {
                     className="masonry-image"
                     loading="lazy"
                   />
-                  <div className="masonry-overlay">
-                    <h4 className="masonry-title">{project.title}</h4>
-                    <span className="masonry-category">{project.category}</span>
-                  </div>
-                </motion.div>
-              ))}
+                   <div className="masonry-overlay">
+                     <h4 className="masonry-title">{project.title}</h4>
+                     <span className="masonry-category">{project.category}</span>
+                     {project.description && <p className="masonry-description">{project.description}</p>}
+                   </div>
+                 </motion.div>
+               ))}
             </div>
           </motion.div>
         )}
@@ -279,29 +295,69 @@ const Projects = ({ openLightbox }) => {
               <Sparkles size={16} style={{ display: 'inline', marginRight: '0.5rem' }} />
               Branding Design
             </h3>
-            <div className="masonry-grid mb-4">
-              {featuredBrandingProjects.map((project, index) => (
-                <motion.div
-                  key={project.id}
-                  className={`masonry-item ${project.tall ? 'tall' : ''} ${project.wide ? 'wide' : ''}`}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={inView ? { opacity: 1, scale: 1 } : {}}
-                  transition={{ delay: index * 0.1, duration: 0.5 }}
-                  onClick={() => handleDesignClick(featuredBrandingProjects, index)}
-                >
-                  <img
-                    src={project.image}
-                    alt={project.title}
-                    className="masonry-image"
-                    loading="lazy"
-                  />
-                  <div className="masonry-overlay">
-                    <h4 className="masonry-title">{project.title}</h4>
-                    <span className="masonry-category">{project.category}</span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            {apiBrandProjectsTransformed.length > 0 && (
+              <div className="brand-gallery-projects">
+                {apiBrandProjectsTransformed.map((project, projectIndex) => (
+                  <motion.div
+                    key={project.id}
+                    className="glass-card-static brand-gallery-project"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={inView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ delay: projectIndex * 0.08, duration: 0.5 }}
+                  >
+                    <h4 style={{ marginTop: 0, marginBottom: '10px' }}>{project.title}</h4>
+                    <p style={{ marginTop: 0, marginBottom: '16px', color: 'var(--text-secondary)' }}>
+                      {project.description || 'No description yet.'}
+                    </p>
+
+                    {project.images && project.images.length > 0 ? (
+                      <div className="brand-gallery-grid">
+                        {project.images.map((image, slideIndex) => (
+                          <button
+                            key={image.id || `${project.id}-slide-${slideIndex}`}
+                            type="button"
+                            className="brand-gallery-item"
+                            onClick={() => openBrandProjectGallery(project, slideIndex)}
+                          >
+                            <img src={image.url} alt={`${project.title} slide ${slideIndex + 1}`} loading="lazy" />
+                            <span>Slide {slideIndex + 1}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ margin: 0, color: 'var(--text-tertiary)' }}>No slides uploaded yet.</p>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* Static fallback branding projects */}
+            {fallbackBrandingProjects.length > 0 && (
+               <div className="masonry-grid mb-4">
+                {fallbackBrandingProjects.map((project, index) => (
+                  <motion.div
+                    key={project.id}
+                    className={`masonry-item ${project.tall ? 'tall' : ''} ${project.wide ? 'wide' : ''}`}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={inView ? { opacity: 1, scale: 1 } : {}}
+                    transition={{ delay: index * 0.1, duration: 0.5 }}
+                    onClick={() => handleDesignClick([project], 0)}
+                  >
+                    <img
+                      src={project.image}
+                      alt={project.title}
+                      className="masonry-image"
+                      loading="lazy"
+                    />
+                    <div className="masonry-overlay">
+                      <h4 className="masonry-title">{project.title}</h4>
+                      <span className="masonry-category">{project.category}</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
 

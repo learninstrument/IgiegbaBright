@@ -837,6 +837,60 @@ body {
   color: var(--color-accent-cyan);
 }
 
+.masonry-description {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.brand-gallery-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.brand-gallery-project {
+  padding: 1.25rem;
+}
+
+.brand-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.brand-gallery-item {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  padding: 0.35rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.brand-gallery-item:hover {
+  border-color: var(--color-accent-cyan);
+  transform: translateY(-2px);
+}
+
+.brand-gallery-item img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.brand-gallery-item span {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
 /* Device Mockup Card */
 .device-mockup-card {
   padding: 2rem;
@@ -1957,6 +2011,19 @@ body {
   gap: 1rem;
 }
 
+.project-files-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.project-files-block {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.01);
+}
+
 .project-form {
   padding: 2rem;
   margin-bottom: 2rem;
@@ -2068,6 +2135,11 @@ body {
   align-items: center;
 }
 
+.project-card.selected {
+  border: 1px solid var(--color-accent-cyan);
+  box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.25);
+}
+
 .project-card-image {
   width: 200px;
   height: 120px;
@@ -2172,7 +2244,17 @@ body {
   animation: spin 1s linear infinite;
 }
 
+.dropzone.disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  border-color: rgba(220, 53, 69, 0.4);
+}
+
 @media (max-width: 768px) {
+  .project-files-layout {
+    grid-template-columns: 1fr;
+  }
+
   .admin-section-header {
     flex-direction: column;
   }

@@ -87,6 +87,9 @@ const AdminPage = () => {
     [brandProjects, selectedBrandProjectId]
   )
 
+  const activeDesignProject = selectedDesignProject || designProjects[0] || null
+  const activeBrandProject = selectedBrandProject || brandProjects[0] || null
+
   const showMessage = (type, text) => {
     setMessage({ type, text })
     setTimeout(() => setMessage({ type: '', text: '' }), 5000)
@@ -147,6 +150,36 @@ const AdminPage = () => {
 
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (designProjects.length === 0) {
+      if (selectedDesignProjectId) setSelectedDesignProjectId('')
+      return
+    }
+
+    const hasValidSelection = designProjects.some(
+      (project) => String(project.id) === String(selectedDesignProjectId)
+    )
+
+    if (!hasValidSelection) {
+      setSelectedDesignProjectId(String(designProjects[0].id))
+    }
+  }, [designProjects, selectedDesignProjectId])
+
+  useEffect(() => {
+    if (brandProjects.length === 0) {
+      if (selectedBrandProjectId) setSelectedBrandProjectId('')
+      return
+    }
+
+    const hasValidSelection = brandProjects.some(
+      (project) => String(project.id) === String(selectedBrandProjectId)
+    )
+
+    if (!hasValidSelection) {
+      setSelectedBrandProjectId(String(brandProjects[0].id))
+    }
+  }, [brandProjects, selectedBrandProjectId])
 
   const resetWebForm = () => {
     setEditingWebProjectId(null)
@@ -307,7 +340,9 @@ const AdminPage = () => {
   }
 
   const uploadGraphicImages = async (files) => {
-    if (!selectedDesignProject) {
+    const projectToUpload = activeDesignProject
+
+    if (!projectToUpload) {
       showMessage('error', 'Select a graphic project first')
       return
     }
@@ -332,12 +367,12 @@ const AdminPage = () => {
         return
       }
 
-      const updatedImages = [...(selectedDesignProject.images || []), ...uploaded]
-      const res = await fetch(`${API_URL}/design-projects/${selectedDesignProject.id}`, {
+      const updatedImages = [...(projectToUpload.images || []), ...uploaded]
+      const res = await fetch(`${API_URL}/design-projects/${projectToUpload.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...selectedDesignProject,
+          ...projectToUpload,
           images: updatedImages
         })
       })
@@ -462,7 +497,9 @@ const AdminPage = () => {
   }
 
   const uploadBrandSlides = async (files) => {
-    if (!selectedBrandProject) {
+    const projectToUpload = activeBrandProject
+
+    if (!projectToUpload) {
       showMessage('error', 'Select a brand identity project first')
       return
     }
@@ -487,12 +524,12 @@ const AdminPage = () => {
         return
       }
 
-      const updatedSlides = [...(selectedBrandProject.images || []), ...uploaded]
-      const res = await fetch(`${API_URL}/brand-projects/${selectedBrandProject.id}`, {
+      const updatedSlides = [...(projectToUpload.images || []), ...uploaded]
+      const res = await fetch(`${API_URL}/brand-projects/${projectToUpload.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...selectedBrandProject,
+          ...projectToUpload,
           images: updatedSlides
         })
       })
@@ -781,13 +818,13 @@ const AdminPage = () => {
                     )}
 
                     <div
-                      {...(selectedDesignProject ? getGraphicRootProps() : {})}
-                      className={`dropzone ${isGraphicDragActive ? 'active' : ''} ${isUploadingGraphic ? 'uploading' : ''} ${!selectedDesignProject ? 'disabled' : ''}`}
+                      {...(activeDesignProject ? getGraphicRootProps() : {})}
+                      className={`dropzone ${isGraphicDragActive ? 'active' : ''} ${isUploadingGraphic ? 'uploading' : ''} ${!activeDesignProject ? 'disabled' : ''}`}
                     >
-                      <input {...getGraphicInputProps()} disabled={!selectedDesignProject} />
+                      <input id="graphic-upload-input" {...getGraphicInputProps()} disabled={!activeDesignProject} />
                       {isUploadingGraphic ? (
                         <><Loader2 className="dropzone-icon spinning" size={48} /><p>Uploading...</p></>
-                      ) : !selectedDesignProject ? (
+                      ) : !activeDesignProject ? (
                         <><Upload className="dropzone-icon" size={48} /><p>Select a project first to enable upload</p><span className="dropzone-hint">Then drag & drop your images</span></>
                       ) : isGraphicDragActive ? (
                         <><Upload className="dropzone-icon" size={48} /><p>Drop images here...</p></>
@@ -796,16 +833,16 @@ const AdminPage = () => {
                       )}
                     </div>
 
-                    {selectedDesignProject && (
+                    {activeDesignProject && (
                       <div className="file-grid">
-                        {(selectedDesignProject.images || []).length > 0 ? (
-                          selectedDesignProject.images.map((image) => (
+                        {(activeDesignProject.images || []).length > 0 ? (
+                          activeDesignProject.images.map((image) => (
                             <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
                               <div className="file-preview">
-                                <img src={image.url} alt={`${selectedDesignProject.name} design`} />
+                                <img src={image.url} alt={`${activeDesignProject.name} design`} />
                               </div>
                               <div className="file-actions">
-                                <button className="file-action-btn delete" onClick={() => deleteGraphicImage(selectedDesignProject.id, image.id)}>
+                                <button className="file-action-btn delete" onClick={() => deleteGraphicImage(activeDesignProject.id, image.id)}>
                                   <Trash2 size={16} />
                                 </button>
                               </div>
@@ -850,6 +887,10 @@ const AdminPage = () => {
                             onClick={(e) => {
                               e.stopPropagation()
                               setSelectedDesignProjectId(String(project.id))
+                              setTimeout(() => {
+                                const input = document.getElementById('graphic-upload-input')
+                                if (input) input.click()
+                              }, 0)
                             }}
                             title="Upload Images"
                           >
@@ -987,13 +1028,13 @@ const AdminPage = () => {
                     )}
 
                     <div
-                      {...(selectedBrandProject ? getBrandRootProps() : {})}
-                      className={`dropzone ${isBrandDragActive ? 'active' : ''} ${isUploadingBrand ? 'uploading' : ''} ${!selectedBrandProject ? 'disabled' : ''}`}
+                      {...(activeBrandProject ? getBrandRootProps() : {})}
+                      className={`dropzone ${isBrandDragActive ? 'active' : ''} ${isUploadingBrand ? 'uploading' : ''} ${!activeBrandProject ? 'disabled' : ''}`}
                     >
-                      <input {...getBrandInputProps()} disabled={!selectedBrandProject} />
+                      <input id="brand-upload-input" {...getBrandInputProps()} disabled={!activeBrandProject} />
                       {isUploadingBrand ? (
                         <><Loader2 className="dropzone-icon spinning" size={48} /><p>Uploading...</p></>
-                      ) : !selectedBrandProject ? (
+                      ) : !activeBrandProject ? (
                         <><Upload className="dropzone-icon" size={48} /><p>Select a project first to enable upload</p><span className="dropzone-hint">Then drag & drop your slides</span></>
                       ) : isBrandDragActive ? (
                         <><Upload className="dropzone-icon" size={48} /><p>Drop slides here...</p></>
@@ -1002,19 +1043,19 @@ const AdminPage = () => {
                       )}
                     </div>
 
-                    {selectedBrandProject && (
+                    {activeBrandProject && (
                       <div className="file-grid">
-                        {(selectedBrandProject.images || []).length > 0 ? (
-                          selectedBrandProject.images.map((image, index) => (
+                        {(activeBrandProject.images || []).length > 0 ? (
+                          activeBrandProject.images.map((image, index) => (
                             <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
                               <div className="file-preview">
-                                <img src={image.url} alt={`${selectedBrandProject.name} slide ${index + 1}`} />
+                                <img src={image.url} alt={`${activeBrandProject.name} slide ${index + 1}`} />
                                 <div className="file-type-badge" style={{ width: 'auto', padding: '0 8px', color: 'white' }}>
                                   Slide {index + 1}
                                 </div>
                               </div>
                               <div className="file-actions">
-                                <button className="file-action-btn delete" onClick={() => deleteBrandSlide(selectedBrandProject.id, image.id)}>
+                                <button className="file-action-btn delete" onClick={() => deleteBrandSlide(activeBrandProject.id, image.id)}>
                                   <Trash2 size={16} />
                                 </button>
                               </div>
@@ -1059,6 +1100,10 @@ const AdminPage = () => {
                             onClick={(e) => {
                               e.stopPropagation()
                               setSelectedBrandProjectId(String(project.id))
+                              setTimeout(() => {
+                                const input = document.getElementById('brand-upload-input')
+                                if (input) input.click()
+                              }, 0)
                             }}
                             title="Upload Slides"
                           >

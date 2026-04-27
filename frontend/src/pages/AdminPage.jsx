@@ -29,6 +29,7 @@ import { fetchApi } from '../lib/apiClient'
 const imageAccept = {
   'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.svg']
 }
+const MAX_BRAND_SLIDES = 25
 
 const createImageItem = (url, index) => ({
   id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
@@ -512,11 +513,21 @@ const AdminPage = () => {
     }
     if (!files || files.length === 0) return
 
+    const existingSlides = Array.isArray(projectToUpload.images) ? projectToUpload.images.length : 0
+    const remainingSlots = Math.max(0, MAX_BRAND_SLIDES - existingSlides)
+    if (remainingSlots === 0) {
+      showMessage('error', `This brand identity project already has ${MAX_BRAND_SLIDES} slides`)
+      return
+    }
+
     setIsUploadingBrand(true)
     try {
       const uploaded = []
       const uploadErrors = []
-      for (const [index, file] of files.entries()) {
+      const filesToUpload = files.slice(0, remainingSlots)
+      const skippedCount = files.length - filesToUpload.length
+
+      for (const [index, file] of filesToUpload.entries()) {
         const result = await uploadToSupabaseDirect(file, 'project', { category: 'brand-slide' })
         if (result.success) {
           uploaded.push(createImageItem(result.url, index))
@@ -542,7 +553,8 @@ const AdminPage = () => {
       })
 
       if (data.success) {
-        showMessage('success', `${uploaded.length} brand slide(s) uploaded`)
+        const skippedMessage = skippedCount > 0 ? ` (${skippedCount} skipped to keep max ${MAX_BRAND_SLIDES})` : ''
+        showMessage('success', `${uploaded.length} brand slide(s) uploaded${skippedMessage}`)
         setSelectedBrandProjectId(String(data.project.id))
         fetchBrandProjects()
       } else {
@@ -646,7 +658,7 @@ const AdminPage = () => {
     onDrop: uploadBrandSlides,
     accept: imageAccept,
     maxSize: 10 * 1024 * 1024,
-    maxFiles: 30
+    maxFiles: MAX_BRAND_SLIDES
   })
 
   const {
@@ -719,7 +731,7 @@ const AdminPage = () => {
                 Project Files
               </h2>
               <p className="admin-section-desc">
-                Graphic Design and Brand Identity each have project name, description, and file uploads.
+                Graphic Design and Brand Identity Design each have project name, description, and file uploads.
               </p>
 
               <div className="project-files-layout">
@@ -798,7 +810,7 @@ const AdminPage = () => {
                   <div className="glass-card-static" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
                     <h4 style={{ marginTop: 0, marginBottom: '0.35rem' }}>Upload Graphic Images</h4>
                     <p style={{ marginTop: 0, marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Choose the project, then upload images to Supabase storage.
+                      Choose a graphic project, then use Upload to add images with that project name and description.
                     </p>
 
                     {designProjects.length > 0 ? (
@@ -821,6 +833,18 @@ const AdminPage = () => {
                         Create a graphic project first.
                       </p>
                     )}
+
+                    <div style={{ marginBottom: '0.85rem' }}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => document.getElementById('graphic-upload-input')?.click()}
+                        disabled={!activeDesignProject || isUploadingGraphic}
+                      >
+                        <Upload size={16} />
+                        Upload Graphic Design
+                      </button>
+                    </div>
 
                     <div
                       {...(activeDesignProject ? getGraphicRootProps() : {})}
@@ -938,10 +962,10 @@ const AdminPage = () => {
                     <div>
                       <h3 className="admin-section-title" style={{ fontSize: '1.15rem', marginBottom: '0.35rem' }}>
                         <Palette size={20} />
-                        Brand Identity
+                        Brand Identity Design
                       </h3>
                       <p className="admin-section-desc" style={{ marginBottom: 0 }}>
-                        Create a brand identity project with name and description, then upload all slides.
+                        Create a brand identity project with name and description, then upload slides (up to {MAX_BRAND_SLIDES} per project).
                       </p>
                     </div>
                     {!showBrandForm && (
@@ -954,7 +978,7 @@ const AdminPage = () => {
                         }}
                       >
                         <Plus size={18} />
-                        New Brand Identity
+                        New Brand Identity Design
                       </button>
                     )}
                   </div>
@@ -967,7 +991,7 @@ const AdminPage = () => {
                       animate={{ opacity: 1, y: 0 }}
                     >
                       <div className="form-header">
-                        <h3>{editingBrandProjectId ? 'Edit Brand Identity' : 'New Brand Identity'}</h3>
+                        <h3>{editingBrandProjectId ? 'Edit Brand Identity Design' : 'New Brand Identity Design'}</h3>
                         <button type="button" className="close-btn" onClick={resetBrandForm}>
                           <X size={20} />
                         </button>
@@ -980,7 +1004,7 @@ const AdminPage = () => {
                             type="text"
                             value={brandForm.name}
                             onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })}
-                            placeholder="e.g., SynParagon Brand Identity"
+                            placeholder="e.g., SynParagon Brand Identity Design"
                             required
                           />
                         </div>
@@ -1008,12 +1032,12 @@ const AdminPage = () => {
                   <div className="glass-card-static" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
                     <h4 style={{ marginTop: 0, marginBottom: '0.35rem' }}>Upload Brand Slides</h4>
                     <p style={{ marginTop: 0, marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Select the brand identity project and upload as many slides as you need.
+                      Select the brand identity design project and upload slides. A project can hold up to {MAX_BRAND_SLIDES} slides.
                     </p>
 
                     {brandProjects.length > 0 ? (
                       <div className="form-group" style={{ marginBottom: '0.85rem' }}>
-                        <label>Select Brand Identity Project</label>
+                        <label>Select Brand Identity Design Project</label>
                         <select
                           value={selectedBrandProjectId}
                           onChange={(e) => setSelectedBrandProjectId(e.target.value)}
@@ -1031,6 +1055,18 @@ const AdminPage = () => {
                         Create a brand identity project first.
                       </p>
                     )}
+
+                    <div style={{ marginBottom: '0.85rem' }}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => document.getElementById('brand-upload-input')?.click()}
+                        disabled={!activeBrandProject || isUploadingBrand}
+                      >
+                        <Upload size={16} />
+                        Upload Brand Identity Slides
+                      </button>
+                    </div>
 
                     <div
                       {...(activeBrandProject ? getBrandRootProps() : {})}

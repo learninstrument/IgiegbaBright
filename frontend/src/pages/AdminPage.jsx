@@ -813,10 +813,8 @@ const AdminPage = () => {
                     </motion.form>
                   )}
 
-                  <div style={{ display: 'none' }}>
-                    <div {...getGraphicRootProps()}>
-                      <input id="graphic-upload-input" {...getGraphicInputProps()} />
-                    </div>
+                  <div {...getGraphicRootProps()} style={{ display: 'none' }}>
+                    <input id="graphic-upload-input" {...getGraphicInputProps()} />
                   </div>
 
                   <div className="projects-list">
@@ -845,28 +843,31 @@ const AdminPage = () => {
                         </div>
                         <div className="project-card-actions">
                           <button
+                            type="button"
                             onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedDesignProjectId(String(project.id))
-                          openGraphicDropzone()
+                              e.stopPropagation();
+                              setSelectedDesignProjectId(String(project.id));
+                              openGraphicDropzone();
                             }}
                             title="Upload Images"
                           >
                             <Upload size={16} />
                           </button>
                           <button
+                            type="button"
                             onClick={(e) => {
-                              e.stopPropagation()
-                              openEditDesignForm(project)
+                              e.stopPropagation();
+                              openEditDesignForm(project);
                             }}
                             title="Edit"
                           >
                             <Edit3 size={16} />
                           </button>
                           <button
+                            type="button"
                             onClick={(e) => {
-                              e.stopPropagation()
-                              deleteDesignProject(project.id)
+                              e.stopPropagation();
+                              deleteDesignProject(project.id);
                             }}
                             className="delete"
                             title="Delete"
@@ -1003,10 +1004,8 @@ const AdminPage = () => {
                     </motion.form>
                   )}
 
-                  <div style={{ display: 'none' }}>
-                    <div {...getBrandRootProps()}>
-                      <input id="brand-upload-input" {...getBrandInputProps()} />
-                    </div>
+                  <div {...getBrandRootProps()} style={{ display: 'none' }}>
+                    <input id="brand-upload-input" {...getBrandInputProps()} />
                   </div>
 
                   <div className="projects-list">
@@ -1035,28 +1034,31 @@ const AdminPage = () => {
                         </div>
                         <div className="project-card-actions">
                           <button
+                            type="button"
                             onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedBrandProjectId(String(project.id))
-                          openBrandDropzone()
+                              e.stopPropagation();
+                              setSelectedBrandProjectId(String(project.id));
+                              openBrandDropzone();
                             }}
                             title="Upload Slides"
                           >
                             <Upload size={16} />
                           </button>
                           <button
+                            type="button"
                             onClick={(e) => {
-                              e.stopPropagation()
-                              openEditBrandForm(project)
+                              e.stopPropagation();
+                              openEditBrandForm(project);
                             }}
                             title="Edit"
                           >
                             <Edit3 size={16} />
                           </button>
                           <button
+                            type="button"
                             onClick={(e) => {
-                              e.stopPropagation()
-                              deleteBrandProject(project.id)
+                              e.stopPropagation();
+                              deleteBrandProject(project.id);
                             }}
                             className="delete"
                             title="Delete"

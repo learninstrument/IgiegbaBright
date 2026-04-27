@@ -642,23 +642,29 @@ const AdminPage = () => {
   const {
     getRootProps: getGraphicRootProps,
     getInputProps: getGraphicInputProps,
-    isDragActive: isGraphicDragActive
+    isDragActive: isGraphicDragActive,
+    open: openGraphicDropzone
   } = useDropzone({
     onDrop: uploadGraphicImages,
     accept: imageAccept,
     maxSize: 10 * 1024 * 1024,
-    maxFiles: 20
+    maxFiles: 20,
+    noClick: true,
+    noKeyboard: true
   })
 
   const {
     getRootProps: getBrandRootProps,
     getInputProps: getBrandInputProps,
-    isDragActive: isBrandDragActive
+    isDragActive: isBrandDragActive,
+    open: openBrandDropzone
   } = useDropzone({
     onDrop: uploadBrandSlides,
     accept: imageAccept,
     maxSize: 10 * 1024 * 1024,
-    maxFiles: MAX_BRAND_SLIDES
+    maxFiles: MAX_BRAND_SLIDES,
+    noClick: true,
+    noKeyboard: true
   })
 
   const {
@@ -807,94 +813,20 @@ const AdminPage = () => {
                     </motion.form>
                   )}
 
-                  <div className="glass-card-static" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
-                    <h4 style={{ marginTop: 0, marginBottom: '0.35rem' }}>Upload Graphic Images</h4>
-                    <p style={{ marginTop: 0, marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Choose a graphic project, then use Upload to add images with that project name and description.
-                    </p>
-
-                    {designProjects.length > 0 ? (
-                      <div className="form-group" style={{ marginBottom: '0.85rem' }}>
-                        <label>Select Graphic Project</label>
-                        <select
-                          value={selectedDesignProjectId}
-                          onChange={(e) => setSelectedDesignProjectId(e.target.value)}
-                        >
-                          <option value="">Choose project...</option>
-                          {designProjects.map((project) => (
-                            <option key={project.id} value={String(project.id)}>
-                              {project.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ) : (
-                      <p style={{ margin: '0 0 0.85rem 0', color: 'var(--text-tertiary)' }}>
-                        Create a graphic project first.
-                      </p>
-                    )}
-
-                    <div style={{ marginBottom: '0.85rem' }}>
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => document.getElementById('graphic-upload-input')?.click()}
-                        disabled={!activeDesignProject || isUploadingGraphic}
-                      >
-                        <Upload size={16} />
-                        Upload Graphic Design
-                      </button>
+                  <div style={{ display: 'none' }}>
+                    <div {...getGraphicRootProps()}>
+                      <input id="graphic-upload-input" {...getGraphicInputProps()} />
                     </div>
-
-                    <div
-                      {...(activeDesignProject ? getGraphicRootProps() : {})}
-                      className={`dropzone ${isGraphicDragActive ? 'active' : ''} ${isUploadingGraphic ? 'uploading' : ''} ${!activeDesignProject ? 'disabled' : ''}`}
-                    >
-                      <input id="graphic-upload-input" {...getGraphicInputProps()} disabled={!activeDesignProject} />
-                      {isUploadingGraphic ? (
-                        <><Loader2 className="dropzone-icon spinning" size={48} /><p>Uploading...</p></>
-                      ) : !activeDesignProject ? (
-                        <><Upload className="dropzone-icon" size={48} /><p>Select a project first to enable upload</p><span className="dropzone-hint">Then drag & drop your images</span></>
-                      ) : isGraphicDragActive ? (
-                        <><Upload className="dropzone-icon" size={48} /><p>Drop images here...</p></>
-                      ) : (
-                        <><Upload className="dropzone-icon" size={48} /><p>Drag & drop graphic images here</p><span className="dropzone-hint">Image files only (max 10MB each)</span></>
-                      )}
-                    </div>
-
-                    {activeDesignProject && (
-                      <div className="file-grid">
-                        {(activeDesignProject.images || []).length > 0 ? (
-                          activeDesignProject.images.map((image) => (
-                            <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-                              <div className="file-preview">
-                                <img src={image.url} alt={`${activeDesignProject.name} design`} />
-                              </div>
-                              <div className="file-actions">
-                                <button className="file-action-btn delete" onClick={() => deleteGraphicImage(activeDesignProject.id, image.id)}>
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </motion.div>
-                          ))
-                        ) : (
-                          <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                            <Image size={48} />
-                            <p>No images uploaded yet</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   <div className="projects-list">
                     {designProjects.map((project) => (
+                      <div key={project.id} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1rem' }}>
                       <motion.div
-                        key={project.id}
                         className={`project-card glass-card-static ${String(selectedDesignProjectId) === String(project.id) ? 'selected' : ''}`}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', marginBottom: 0 }}
                         onClick={() => setSelectedDesignProjectId(String(project.id))}
                       >
                         <div className="project-card-image">
@@ -916,10 +848,7 @@ const AdminPage = () => {
                             onClick={(e) => {
                               e.stopPropagation()
                               setSelectedDesignProjectId(String(project.id))
-                              setTimeout(() => {
-                                const input = document.getElementById('graphic-upload-input')
-                                if (input) input.click()
-                              }, 0)
+                          openGraphicDropzone()
                             }}
                             title="Upload Images"
                           >
@@ -946,6 +875,51 @@ const AdminPage = () => {
                           </button>
                         </div>
                       </motion.div>
+
+                      <AnimatePresence>
+                        {String(selectedDesignProjectId) === String(project.id) && (
+                          <motion.div
+                            key="graphic-details"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <div className="glass-card-static" style={{ padding: '1.25rem', marginTop: '0.5rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h5 style={{ margin: 0, fontSize: '1rem' }}>Project Images</h5>
+                                {isUploadingGraphic && String(activeDesignProject?.id) === String(project.id) && (
+                                  <span style={{ fontSize: '0.85rem', color: 'var(--color-accent-cyan)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <Loader2 size={14} className="spinning" /> Uploading...
+                                  </span>
+                                )}
+                              </div>
+                              <div className="file-grid">
+                                {(project.images || []).length > 0 ? (
+                                  project.images.map((image) => (
+                                    <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                                      <div className="file-preview">
+                                        <img src={image.url} alt={`${project.name} design`} />
+                                      </div>
+                                      <div className="file-actions">
+                                        <button className="file-action-btn delete" onClick={() => deleteGraphicImage(project.id, image.id)}>
+                                          <Trash2 size={16} />
+                                        </button>
+                                      </div>
+                                    </motion.div>
+                                  ))
+                                ) : (
+                                  <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '2rem 0' }}>
+                                    <Image size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No images uploaded yet. Click the upload button on the project card to add.</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      </div>
                     ))}
 
                     {designProjects.length === 0 && !showDesignForm && (
@@ -1029,97 +1003,20 @@ const AdminPage = () => {
                     </motion.form>
                   )}
 
-                  <div className="glass-card-static" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
-                    <h4 style={{ marginTop: 0, marginBottom: '0.35rem' }}>Upload Brand Slides</h4>
-                    <p style={{ marginTop: 0, marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Select the brand identity design project and upload slides. A project can hold up to {MAX_BRAND_SLIDES} slides.
-                    </p>
-
-                    {brandProjects.length > 0 ? (
-                      <div className="form-group" style={{ marginBottom: '0.85rem' }}>
-                        <label>Select Brand Identity Design Project</label>
-                        <select
-                          value={selectedBrandProjectId}
-                          onChange={(e) => setSelectedBrandProjectId(e.target.value)}
-                        >
-                          <option value="">Choose project...</option>
-                          {brandProjects.map((project) => (
-                            <option key={project.id} value={String(project.id)}>
-                              {project.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ) : (
-                      <p style={{ margin: '0 0 0.85rem 0', color: 'var(--text-tertiary)' }}>
-                        Create a brand identity project first.
-                      </p>
-                    )}
-
-                    <div style={{ marginBottom: '0.85rem' }}>
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => document.getElementById('brand-upload-input')?.click()}
-                        disabled={!activeBrandProject || isUploadingBrand}
-                      >
-                        <Upload size={16} />
-                        Upload Brand Identity Slides
-                      </button>
+                  <div style={{ display: 'none' }}>
+                    <div {...getBrandRootProps()}>
+                      <input id="brand-upload-input" {...getBrandInputProps()} />
                     </div>
-
-                    <div
-                      {...(activeBrandProject ? getBrandRootProps() : {})}
-                      className={`dropzone ${isBrandDragActive ? 'active' : ''} ${isUploadingBrand ? 'uploading' : ''} ${!activeBrandProject ? 'disabled' : ''}`}
-                    >
-                      <input id="brand-upload-input" {...getBrandInputProps()} disabled={!activeBrandProject} />
-                      {isUploadingBrand ? (
-                        <><Loader2 className="dropzone-icon spinning" size={48} /><p>Uploading...</p></>
-                      ) : !activeBrandProject ? (
-                        <><Upload className="dropzone-icon" size={48} /><p>Select a project first to enable upload</p><span className="dropzone-hint">Then drag & drop your slides</span></>
-                      ) : isBrandDragActive ? (
-                        <><Upload className="dropzone-icon" size={48} /><p>Drop slides here...</p></>
-                      ) : (
-                        <><Upload className="dropzone-icon" size={48} /><p>Drag & drop brand slides here</p><span className="dropzone-hint">Image files only (max 10MB each)</span></>
-                      )}
-                    </div>
-
-                    {activeBrandProject && (
-                      <div className="file-grid">
-                        {(activeBrandProject.images || []).length > 0 ? (
-                          activeBrandProject.images.map((image, index) => (
-                            <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-                              <div className="file-preview">
-                                <img src={image.url} alt={`${activeBrandProject.name} slide ${index + 1}`} />
-                                <div className="file-type-badge" style={{ width: 'auto', padding: '0 8px', color: 'white' }}>
-                                  Slide {index + 1}
-                                </div>
-                              </div>
-                              <div className="file-actions">
-                                <button className="file-action-btn delete" onClick={() => deleteBrandSlide(activeBrandProject.id, image.id)}>
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </motion.div>
-                          ))
-                        ) : (
-                          <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                            <Image size={48} />
-                            <p>No slides uploaded yet</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   <div className="projects-list">
                     {brandProjects.map((project) => (
+                      <div key={project.id} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1rem' }}>
                       <motion.div
-                        key={project.id}
                         className={`project-card glass-card-static ${String(selectedBrandProjectId) === String(project.id) ? 'selected' : ''}`}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', marginBottom: 0 }}
                         onClick={() => setSelectedBrandProjectId(String(project.id))}
                       >
                         <div className="project-card-image">
@@ -1141,10 +1038,7 @@ const AdminPage = () => {
                             onClick={(e) => {
                               e.stopPropagation()
                               setSelectedBrandProjectId(String(project.id))
-                              setTimeout(() => {
-                                const input = document.getElementById('brand-upload-input')
-                                if (input) input.click()
-                              }, 0)
+                          openBrandDropzone()
                             }}
                             title="Upload Slides"
                           >
@@ -1171,6 +1065,54 @@ const AdminPage = () => {
                           </button>
                         </div>
                       </motion.div>
+
+                      <AnimatePresence>
+                        {String(selectedBrandProjectId) === String(project.id) && (
+                          <motion.div
+                            key="brand-details"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <div className="glass-card-static" style={{ padding: '1.25rem', marginTop: '0.5rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h5 style={{ margin: 0, fontSize: '1rem' }}>Brand Slides</h5>
+                                {isUploadingBrand && String(activeBrandProject?.id) === String(project.id) && (
+                                  <span style={{ fontSize: '0.85rem', color: 'var(--color-accent-cyan)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <Loader2 size={14} className="spinning" /> Uploading...
+                                  </span>
+                                )}
+                              </div>
+                              <div className="file-grid">
+                                {(project.images || []).length > 0 ? (
+                                  project.images.map((image, index) => (
+                                    <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                                      <div className="file-preview">
+                                        <img src={image.url} alt={`${project.name} slide ${index + 1}`} />
+                                        <div className="file-type-badge" style={{ width: 'auto', padding: '0 8px', color: 'white' }}>
+                                          Slide {index + 1}
+                                        </div>
+                                      </div>
+                                      <div className="file-actions">
+                                        <button className="file-action-btn delete" onClick={() => deleteBrandSlide(project.id, image.id)}>
+                                          <Trash2 size={16} />
+                                        </button>
+                                      </div>
+                                    </motion.div>
+                                  ))
+                                ) : (
+                                  <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '2rem 0' }}>
+                                    <Palette size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No slides uploaded yet. Click the upload button on the project card to add.</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      </div>
                     ))}
 
                     {brandProjects.length === 0 && !showBrandForm && (

@@ -493,7 +493,7 @@ app.post('/api/webprojects', async (req, res) => {
       console.error('Supabase insert error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to create project',
+        message: `Failed to create project: ${error.message}`,
         error: error.message
       });
     }
@@ -632,7 +632,7 @@ app.get('/api/design-projects', async (req, res) => {
 // Add new design project
 app.post('/api/design-projects', async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, images } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -646,7 +646,7 @@ app.post('/api/design-projects', async (req, res) => {
       .insert([{
         name,
         description: description || '',
-        images: []
+        images: images || []
       }])
       .select();
 
@@ -654,7 +654,7 @@ app.post('/api/design-projects', async (req, res) => {
       console.error('Supabase insert error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to create design project',
+        message: `Failed to create design project: ${error.message}`,
         error: error.message
       });
     }
@@ -753,6 +753,7 @@ app.delete('/api/design-projects/:id', async (req, res) => {
 // ========================
 // BRAND PROJECTS API
 // ========================
+const MAX_BRAND_SLIDES = 25;
 
 // Get all brand projects
 app.get('/api/brand-projects', async (req, res) => {
@@ -796,10 +797,10 @@ app.post('/api/brand-projects', async (req, res) => {
     }
 
     const safeImages = Array.isArray(images) ? images : [];
-    if (safeImages.length > 15) {
+    if (safeImages.length > MAX_BRAND_SLIDES) {
       return res.status(400).json({
         success: false,
-        message: 'A brand identity project can have a maximum of 15 slides'
+        message: `A brand identity project can have a maximum of ${MAX_BRAND_SLIDES} slides`
       });
     }
 
@@ -816,7 +817,7 @@ app.post('/api/brand-projects', async (req, res) => {
       console.error('Supabase insert error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to create brand project',
+        message: `Failed to create brand project: ${error.message}`,
         error: error.message
       });
     }
@@ -841,10 +842,10 @@ app.put('/api/brand-projects/:id', async (req, res) => {
     const { id } = req.params;
     const { name, description, images } = req.body;
 
-    if (images !== undefined && (!Array.isArray(images) || images.length > 15)) {
+    if (images !== undefined && (!Array.isArray(images) || images.length > MAX_BRAND_SLIDES)) {
       return res.status(400).json({
         success: false,
-        message: 'A brand identity project can have between 0 and 15 slides'
+        message: `A brand identity project can have between 0 and ${MAX_BRAND_SLIDES} slides`
       });
     }
 

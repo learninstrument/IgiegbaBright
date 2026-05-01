@@ -75,6 +75,7 @@ const AdminPage = () => {
     title: '',
     description: '',
     image: '',
+    file: null,
     liveUrl: '',
     githubUrl: '',
     technologies: ''
@@ -85,7 +86,8 @@ const AdminPage = () => {
   const [selectedDesignProjectId, setSelectedDesignProjectId] = useState('')
   const [designForm, setDesignForm] = useState({
     name: '',
-    description: ''
+    description: '',
+    files: []
   })
 
   const [showBrandForm, setShowBrandForm] = useState(false)
@@ -93,7 +95,8 @@ const AdminPage = () => {
   const [selectedBrandProjectId, setSelectedBrandProjectId] = useState('')
   const [brandForm, setBrandForm] = useState({
     name: '',
-    description: ''
+    description: '',
+    files: []
   })
 
   const selectedDesignProject = useMemo(
@@ -204,6 +207,7 @@ const AdminPage = () => {
       title: '',
       description: '',
       image: '',
+      file: null,
       liveUrl: '',
       githubUrl: '',
       technologies: ''
@@ -216,6 +220,7 @@ const AdminPage = () => {
       title: project.name || project.title || '',
       description: project.description || '',
       image: project.image || '',
+      file: null,
       liveUrl: project.liveUrl || project.liveDemo || project.url || '',
       githubUrl: project.githubUrl || project.github || '',
       technologies: Array.isArray(project.technologies)
@@ -232,6 +237,19 @@ const AdminPage = () => {
     const technologies = webForm.technologies.split(',').map(item => item.trim()).filter(Boolean)
 
     try {
+      let finalImageUrl = webForm.image;
+
+      if (webForm.file) {
+        const result = await uploadToSupabaseDirect(webForm.file, 'project', { category: 'web' });
+        if (result.success) {
+          finalImageUrl = result.url;
+        } else {
+          showMessage('error', `Failed to upload image: ${result.error}`);
+          setIsSaving(false);
+          return;
+        }
+      }
+
       const endpoint = editingWebProjectId
         ? `/webprojects/${editingWebProjectId}`
         : '/webprojects'
@@ -242,7 +260,7 @@ const AdminPage = () => {
         body: JSON.stringify({
           name: webForm.title,
           description: webForm.description,
-          image: webForm.image,
+          image: finalImageUrl,
           liveUrl: webForm.liveUrl,
           githubUrl: webForm.githubUrl,
           technologies
@@ -283,14 +301,15 @@ const AdminPage = () => {
   const resetDesignForm = () => {
     setEditingDesignProjectId(null)
     setShowDesignForm(false)
-    setDesignForm({ name: '', description: '' })
+    setDesignForm({ name: '', description: '', files: [] })
   }
 
   const openEditDesignForm = (project) => {
     setEditingDesignProjectId(project.id)
     setDesignForm({
       name: project.name || '',
-      description: project.description || ''
+      description: project.description || '',
+      files: []
     })
     setShowDesignForm(true)
   }
@@ -300,11 +319,26 @@ const AdminPage = () => {
     setIsSaving(true)
 
     try {
+      let uploadedImages = [];
       const endpoint = editingDesignProjectId
         ? `/design-projects/${editingDesignProjectId}`
         : '/design-projects'
 
       const existingProject = designProjects.find(project => String(project.id) === String(editingDesignProjectId))
+      if (existingProject && existingProject.images) {
+        uploadedImages = [...existingProject.images];
+      }
+
+      if (designForm.files && designForm.files.length > 0) {
+        for (const [index, file] of designForm.files.entries()) {
+          const result = await uploadToSupabaseDirect(file, 'project', { category: 'graphic' })
+          if (result.success) {
+            uploadedImages.push(createImageItem(result.url, index))
+          } else {
+            showMessage('error', `Failed to upload ${file.name}: ${result.error}`)
+          }
+        }
+      }
 
       const data = await requestJson(endpoint, {
         method: editingDesignProjectId ? 'PUT' : 'POST',
@@ -312,7 +346,7 @@ const AdminPage = () => {
         body: JSON.stringify({
           name: designForm.name,
           description: designForm.description,
-          images: existingProject?.images || []
+          images: uploadedImages
         })
       })
 
@@ -436,14 +470,15 @@ const AdminPage = () => {
   const resetBrandForm = () => {
     setEditingBrandProjectId(null)
     setShowBrandForm(false)
-    setBrandForm({ name: '', description: '' })
+    setBrandForm({ name: '', description: '', files: [] })
   }
 
   const openEditBrandForm = (project) => {
     setEditingBrandProjectId(project.id)
     setBrandForm({
       name: project.name || '',
-      description: project.description || ''
+      description: project.description || '',
+      files: []
     })
     setShowBrandForm(true)
   }
@@ -453,11 +488,29 @@ const AdminPage = () => {
     setIsSaving(true)
 
     try {
+      let uploadedImages = [];
       const endpoint = editingBrandProjectId
         ? `/brand-projects/${editingBrandProjectId}`
         : '/brand-projects'
 
       const existingProject = brandProjects.find(project => String(project.id) === String(editingBrandProjectId))
+      if (existingProject && existingProject.images) {
+        uploadedImages = [...existingProject.images];
+      }
+
+      if (brandForm.files && brandForm.files.length > 0) {
+        const remainingSlots = Math.max(0, MAX_BRAND_SLIDES - uploadedImages.length);
+        const filesToUpload = brandForm.files.slice(0, remainingSlots);
+
+        for (const [index, file] of filesToUpload.entries()) {
+          const result = await uploadToSupabaseDirect(file, 'project', { category: 'brand-slide' })
+          if (result.success) {
+            uploadedImages.push(createImageItem(result.url, index))
+          } else {
+             showMessage('error', `Failed to upload ${file.name}: ${result.error}`)
+          }
+        }
+      }
 
       const data = await requestJson(endpoint, {
         method: editingBrandProjectId ? 'PUT' : 'POST',
@@ -465,7 +518,7 @@ const AdminPage = () => {
         body: JSON.stringify({
           name: brandForm.name,
           description: brandForm.description,
-          images: existingProject?.images || []
+          images: uploadedImages
         })
       })
 
@@ -802,12 +855,27 @@ const AdminPage = () => {
                             required
                           />
                         </div>
+                    <div className="form-group full-width">
+                      <label>Upload Images (Optional)</label>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => setDesignForm({ ...designForm, files: Array.from(e.target.files) })}
+                        style={{ padding: '0.65rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'var(--text-primary)' }}
+                      />
+                      {designForm.files?.length > 0 && (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-accent-cyan)', marginTop: '0.5rem', display: 'block' }}>
+                          {designForm.files.length} file(s) selected to upload and save
+                        </span>
+                      )}
+                    </div>
                       </div>
 
                       <div className="form-actions">
                         <button type="button" className="btn-secondary" onClick={resetDesignForm}>Cancel</button>
                         <button type="submit" className="btn-primary" disabled={isSaving}>
-                          {isSaving ? <><Loader2 className="spinning" size={18} /> Saving...</> : <><Save size={18} /> Save Project</>}
+                      {isSaving ? <><Loader2 className="spinning" size={18} /> {designForm.files?.length > 0 ? 'Uploading & Saving...' : 'Saving...'}</> : <><Upload size={18} /> {designForm.files?.length > 0 ? 'Upload & Save Project' : 'Save Project'}</>}
                         </button>
                       </div>
                     </motion.form>
@@ -889,12 +957,34 @@ const AdminPage = () => {
                             <div className="glass-card-static" style={{ padding: '1.25rem', marginTop: '0.5rem' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                 <h5 style={{ margin: 0, fontSize: '1rem' }}>Project Images</h5>
-                                {isUploadingGraphic && String(activeDesignProject?.id) === String(project.id) && (
-                                  <span style={{ fontSize: '0.85rem', color: 'var(--color-accent-cyan)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Loader2 size={14} className="spinning" /> Uploading...
-                                  </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                  {isUploadingGraphic && String(activeDesignProject?.id) === String(project.id) && (
+                                    <span style={{ fontSize: '0.85rem', color: 'var(--color-accent-cyan)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      <Loader2 size={14} className="spinning" /> Uploading...
+                                    </span>
+                                  )}
+                                  <button type="button" className="btn-primary" onClick={() => openGraphicDropzone()} disabled={isUploadingGraphic}>
+                                    <Upload size={16} />
+                                    Upload Images
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div {...getGraphicRootProps()} className={`dropzone ${isGraphicDragActive ? 'active' : ''} ${isUploadingGraphic ? 'uploading' : ''}`} style={{ marginBottom: '1.5rem', minHeight: '120px', padding: '1.5rem', cursor: 'pointer' }}>
+                                <input {...getGraphicInputProps()} />
+                                {isUploadingGraphic ? (
+                                  <div style={{ textAlign: 'center' }}>
+                                    <Loader2 className="spinning" size={32} style={{ margin: '0 auto 0.5rem', color: 'var(--color-accent-cyan)' }} />
+                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>Uploading...</p>
+                                  </div>
+                                ) : (
+                                  <div style={{ textAlign: 'center' }}>
+                                    <Upload size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>Drag & drop graphic images here, or <strong>click to select files</strong></p>
+                                  </div>
                                 )}
                               </div>
+
                               <div className="file-grid">
                                 {(project.images || []).length > 0 ? (
                                   project.images.map((image) => (
@@ -912,7 +1002,7 @@ const AdminPage = () => {
                                 ) : (
                                   <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '2rem 0' }}>
                                     <Image size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No images uploaded yet. Click the upload button on the project card to add.</p>
+                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No images uploaded yet. Click the upload button above to add.</p>
                                   </div>
                                 )}
                               </div>
@@ -993,20 +1083,31 @@ const AdminPage = () => {
                             required
                           />
                         </div>
+                    <div className="form-group full-width">
+                      <label>Upload Brand Slides (Optional)</label>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => setBrandForm({ ...brandForm, files: Array.from(e.target.files) })}
+                        style={{ padding: '0.65rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'var(--text-primary)' }}
+                      />
+                      {brandForm.files?.length > 0 && (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-accent-cyan)', marginTop: '0.5rem', display: 'block' }}>
+                          {brandForm.files.length} file(s) selected to upload and save
+                        </span>
+                      )}
+                    </div>
                       </div>
 
                       <div className="form-actions">
                         <button type="button" className="btn-secondary" onClick={resetBrandForm}>Cancel</button>
                         <button type="submit" className="btn-primary" disabled={isSaving}>
-                          {isSaving ? <><Loader2 className="spinning" size={18} /> Saving...</> : <><Save size={18} /> Save Project</>}
+                      {isSaving ? <><Loader2 className="spinning" size={18} /> {brandForm.files?.length > 0 ? 'Uploading & Saving...' : 'Saving...'}</> : <><Upload size={18} /> {brandForm.files?.length > 0 ? 'Upload & Save Project' : 'Save Project'}</>}
                         </button>
                       </div>
                     </motion.form>
                   )}
-
-                  <div {...getBrandRootProps()} style={{ display: 'none' }}>
-                    <input id="brand-upload-input" {...getBrandInputProps()} />
-                  </div>
 
                   <div className="projects-list">
                     {brandProjects.map((project) => (
@@ -1080,33 +1181,55 @@ const AdminPage = () => {
                             <div className="glass-card-static" style={{ padding: '1.25rem', marginTop: '0.5rem' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                 <h5 style={{ margin: 0, fontSize: '1rem' }}>Brand Slides</h5>
-                                {isUploadingBrand && String(activeBrandProject?.id) === String(project.id) && (
-                                  <span style={{ fontSize: '0.85rem', color: 'var(--color-accent-cyan)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Loader2 size={14} className="spinning" /> Uploading...
-                                  </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                  {isUploadingBrand && String(activeBrandProject?.id) === String(project.id) && (
+                                    <span style={{ fontSize: '0.85rem', color: 'var(--color-accent-cyan)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      <Loader2 size={14} className="spinning" /> Uploading...
+                                    </span>
+                                  )}
+                                  <button type="button" className="btn-primary" onClick={() => openBrandDropzone()} disabled={isUploadingBrand}>
+                                    <Upload size={16} />
+                                    Upload Slides
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div {...getBrandRootProps()} className={`dropzone ${isBrandDragActive ? 'active' : ''} ${isUploadingBrand ? 'uploading' : ''}`} style={{ marginBottom: '1.5rem', minHeight: '120px', padding: '1.5rem', cursor: 'pointer' }}>
+                                <input {...getBrandInputProps()} />
+                                {isUploadingBrand ? (
+                                  <div style={{ textAlign: 'center' }}>
+                                    <Loader2 className="spinning" size={32} style={{ margin: '0 auto 0.5rem', color: 'var(--color-accent-cyan)' }} />
+                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>Uploading...</p>
+                                  </div>
+                                ) : (
+                                  <div style={{ textAlign: 'center' }}>
+                                    <Upload size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>Drag & drop brand slides here, or <strong>click to select files</strong></p>
+                                  </div>
                                 )}
                               </div>
-                              <div className="file-grid">
+
+                              <div className="brand-slides-container" style={{ display: 'flex', overflowX: 'auto', gap: '1rem', paddingBottom: '1rem', scrollbarWidth: 'thin', scrollbarColor: 'var(--color-accent-cyan) rgba(255,255,255,0.05)' }}>
                                 {(project.images || []).length > 0 ? (
                                   project.images.map((image, index) => (
-                                    <motion.div key={image.id} className="file-card" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-                                      <div className="file-preview">
-                                        <img src={image.url} alt={`${project.name} slide ${index + 1}`} />
-                                        <div className="file-type-badge" style={{ width: 'auto', padding: '0 8px', color: 'white' }}>
-                                          Slide {index + 1}
-                                        </div>
+                                    <motion.div key={image.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={{ flex: '0 0 auto', width: '220px', position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                      <img src={image.url} alt={`${project.name} slide ${index + 1}`} style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }} />
+                                      <div style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '2px 8px', fontSize: '0.75rem', borderRadius: '4px', backdropFilter: 'blur(4px)' }}>
+                                        Slide {index + 1}
                                       </div>
-                                      <div className="file-actions">
-                                        <button className="file-action-btn delete" onClick={() => deleteBrandSlide(project.id, image.id)}>
-                                          <Trash2 size={16} />
-                                        </button>
-                                      </div>
+                                      <button
+                                        onClick={() => deleteBrandSlide(project.id, image.id)}
+                                        style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(239, 68, 68, 0.9)', border: 'none', borderRadius: '4px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
+                                        title="Delete Slide"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
                                     </motion.div>
                                   ))
                                 ) : (
-                                  <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '2rem 0' }}>
+                                  <div className="empty-state" style={{ width: '100%', padding: '2rem 0' }}>
                                     <Palette size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No slides uploaded yet. Click the upload button on the project card to add.</p>
+                                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No slides uploaded yet. Use the upload area above to add some.</p>
                                   </div>
                                 )}
                               </div>
@@ -1182,13 +1305,23 @@ const AdminPage = () => {
                       />
                     </div>
                     <div className="form-group full-width">
-                      <label>Screenshot URL</label>
+                      <label>Project Screenshot (Upload)</label>
                       <input
-                        type="text"
-                        value={webForm.image}
-                        onChange={(e) => setWebForm({ ...webForm, image: e.target.value })}
-                        placeholder="https://your-image-url.com"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setWebForm({ ...webForm, file: e.target.files[0] })}
+                        style={{ padding: '0.65rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'var(--text-primary)' }}
                       />
+                      {webForm.image && !webForm.file && (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem', display: 'block' }}>
+                          Current image is saved. Uploading a new one will replace it.
+                        </span>
+                      )}
+                      {webForm.file && (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--color-accent-cyan)', marginTop: '0.5rem', display: 'block' }}>
+                          1 file selected for upload
+                        </span>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Live Demo URL</label>
@@ -1222,7 +1355,7 @@ const AdminPage = () => {
                   <div className="form-actions">
                     <button type="button" className="btn-secondary" onClick={resetWebForm}>Cancel</button>
                     <button type="submit" className="btn-primary" disabled={isSaving}>
-                      {isSaving ? <><Loader2 className="spinning" size={18} /> Saving...</> : <><Save size={18} /> Save Project</>}
+                      {isSaving ? <><Loader2 className="spinning" size={18} /> {webForm.file ? 'Uploading & Saving...' : 'Saving...'}</> : <><Upload size={18} /> {webForm.file ? 'Upload & Save App' : 'Save App'}</>}
                     </button>
                   </div>
                 </motion.form>

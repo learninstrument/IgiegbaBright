@@ -26,7 +26,7 @@ const Skills = () => {
     { name: 'Node.js', icon: <Server size={18} />, level: 'Advanced' },
     { name: 'Express.js', icon: <Zap size={18} />, level: 'Advanced' },
     { name: 'JavaScript (ES6+)', icon: <Code2 size={18} />, level: 'Advanced' },
-    { name: 'Typescript (ES6+)', icon: <Code2 size={18} />, level: 'Intermediate' },
+    { name: 'Typescript', icon: <Code2 size={18} />, level: 'Intermediate' },
     { name: 'REST API Design', icon: <Globe size={18} />, level: 'Advanced' },
     { name: 'HTML5 & CSS3', icon: <Layout size={18} />, level: 'Expert' },
     { name: 'Tailwind CSS', icon: <Layers size={18} />, level: 'Advanced' },

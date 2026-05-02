@@ -94,8 +94,7 @@ const Projects = ({ openLightbox }) => {
     category: 'Graphic Design',
     image: project.images?.[0]?.url || '',
     description: project.description,
-    images: project.images || [],
-    wide: true
+    images: project.images || []
   }))
 
   // Transform API brand projects into display format
@@ -295,7 +294,7 @@ const Projects = ({ openLightbox }) => {
               return (
               <motion.div
                 key={project.id || projectName}
-                className="glass-card device-mockup-card mb-4"
+                className="glass-card web-app-card mb-4"
                 initial={{ opacity: 0, y: 30 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ delay: 0.3, duration: 0.6 }}

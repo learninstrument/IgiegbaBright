@@ -1082,6 +1082,14 @@ body {
     grid-row: auto;
     grid-column: auto;
   }
+
+  .web-app-card {
+    padding: 1.25rem;
+  }
+
+  .project-links {
+    flex-direction: column;
+  }
 }
 
 /* Lightbox */

@@ -8,6 +8,7 @@ import {
   Send,
   Github,
   Linkedin,
+  Facebook,
   Instagram,
   CheckCircle,
   AlertCircle
@@ -84,7 +85,7 @@ const Contact = () => {
     {
       icon: <Mail size={24} />,
       label: 'Email',
-      value: 'hello@igiegbabright.com'
+      value: 'brightigiegba@gmail.com'
     },
     {
       icon: <MapPin size={24} />,
@@ -94,14 +95,15 @@ const Contact = () => {
     {
       icon: <Phone size={24} />,
       label: 'Phone',
-      value: '+234 XXX XXX XXXX'
+      value: '+234 701 5521 828'
     }
   ]
 
   const socialLinks = [
-    { icon: <Github size={20} />, href: 'https://github.com', label: 'GitHub' },
-    { icon: <Linkedin size={20} />, href: 'https://linkedin.com', label: 'LinkedIn' },
-    { icon: <Instagram size={20} />, href: 'https://instagram.com', label: 'Instagram' }
+    { icon: <Github size={20} />, href: 'https://github.com/learninstrument', label: 'GitHub' },
+    { icon: <Linkedin size={20} />, href: 'https://linkedin.com/brightogie', label: 'LinkedIn' },
+    { icon: <Instagram size={20} />, href: 'https://instagram.com/synparagon', label: 'Instagram' },
+    { icon: <Facebook size={20} />, href: 'https://facebook.com/brightigiegba', label: 'Facebook' }
   ]
 
   return (
@@ -114,7 +116,7 @@ const Contact = () => {
           transition={{ duration: 0.6 }}
         >
           <span className="section-tag">Contact</span>
-          <h2 className="section-title">Let's Work Together</h2>
+          <h2 className="section-title"> Let's Work Together</h2>
           <p className="section-description">
             Have a project in mind? Let's discuss how we can bring your vision to life.
           </p>
